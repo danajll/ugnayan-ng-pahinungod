@@ -1,6 +1,6 @@
 # Pahinungod haha
 
-Vue 3 + Vite frontend for the Pahinungod landing page.
+Vue 3 + Vite frontend 
 
 ## Run
 
