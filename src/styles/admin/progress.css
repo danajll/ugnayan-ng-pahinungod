@@ -1,0 +1,197 @@
+.progress-header h1 {
+
+  margin: 0;
+
+  color: #5f5859;
+  font-size: 17px;
+
+}
+
+
+.progress-header p {
+
+  margin: 7px 0 0;
+
+  color: #756e6f;
+  font-size: 13px;
+
+}
+
+
+.progress-summary {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 20px;
+  margin-top: 30px;
+
+}
+
+
+.progress-summary-card {
+
+  padding: 25px;
+
+  border: 1px solid #e8e2e2;
+  border-radius: 13px;
+
+}
+
+
+.progress-summary-card span {
+
+  display: block;
+
+  color: #756e6f;
+  font-size: 12px;
+  letter-spacing: .5px;
+
+}
+
+
+.progress-summary-card strong {
+
+  display: block;
+
+  margin-top: 8px;
+
+  color: var(--admin-maroon-dark);
+  font-size: 30px;
+
+}
+
+
+.progress-section-title {
+
+  margin: 35px 0 20px;
+
+  color: #625b5c;
+  font-size: 16px;
+
+}
+
+
+.badge-grid {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, 1fr);
+
+  gap: 20px;
+
+}
+
+
+.badge-card {
+
+  padding: 22px;
+
+  border: 1px solid #e8e2e2;
+  border-radius: 13px;
+
+}
+
+
+.badge-icon {
+
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  background: #f3e7e8;
+  color: var(--admin-maroon);
+
+}
+
+
+.badge-card h3 {
+
+  margin: 18px 0 7px;
+
+  font-size: 16px;
+
+}
+
+
+.badge-card p {
+
+  min-height: 42px;
+  margin: 0;
+
+  color: #716a6b;
+  font-size: 12px;
+  line-height: 1.6;
+
+}
+
+
+.badge-progress {
+
+  margin-top: 20px;
+
+}
+
+
+.badge-progress > div:first-child {
+
+  display: flex;
+  justify-content: space-between;
+
+  color: #716a6b;
+  font-size: 11px;
+
+}
+
+
+.badge-progress-bar {
+
+  height: 6px;
+  margin-top: 6px;
+  overflow: hidden;
+
+  background: #ece8e8;
+  border-radius: 10px;
+
+}
+
+
+.badge-progress-bar span {
+
+  display: block;
+  height: 100%;
+
+  background: var(--admin-maroon);
+
+}
+
+
+@media (max-width: 1000px) {
+
+  .badge-grid {
+
+    grid-template-columns:
+      repeat(2, 1fr);
+
+  }
+
+}
+
+
+@media (max-width: 650px) {
+
+  .progress-summary,
+  .badge-grid {
+
+    grid-template-columns: 1fr;
+
+  }
+
+}
