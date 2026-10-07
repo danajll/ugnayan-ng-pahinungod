@@ -13,27 +13,62 @@ Django REST Framework 6.x + Python 3.x + Supabase (PostgreSQL)
 
 ---
 
-## Step 0: Navigate to backend dir
-- cd backend
+## Run
+cd backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cp .env.example .env                 # Fill in real values
+python manage.py migrate
+python manage.py runserver
 
-## Step 1: Create a Virtual Environment
-- python -m venv venv
+---
 
-## Step 2: Activate the Virtual Env
-- .\venv\Scripts\Activate.ps1
-- Should now show (venv) before each prompt
+## Run
+cd backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cp .env.example .env                 # Fill in real values
+python manage.py migrate
+python manage.py runserver
 
-## Step 3: Install dependencies
-- pip install -r requirements.txt
+---
 
-## Step 4: Create .env
-- Follow the provided .env.example file
-- Ask backend devs if need help filling up
+## Guide to the APIs
+1. BASE URL
+http://127.0.0.1:8000/api
 
-## Step 5: Run the Server
-- python manage.py runserver
+2. Authentication
+Most endpoints are public. Endpoints marked with a lock (🔒) require a token.
 
-## Step 6: Verify if it works
-- Run http://127.0.0.1:8000/api/health/ in your browser
-- Should return {"status": "ok", "service": "backend"}
+3. Summary of Endpoints
 
+## Public Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/health/` | Used for testing, confirms if the backend is running |
+| POST | `/api/register/` | Create a new volunteer account (returns an auth token) |
+| POST | `/api/login/` | Log in with existing credentials (returns an auth token) |
+| GET | `/api/events/` | List all events |
+| POST | `/api/events/` | Create a new event |
+| GET | `/api/events/<id>/` | Retrieve a single event |
+| PUT | `/api/events/<id>/` | Full update of an event |
+| PATCH | `/api/events/<id>/` | Partial update of an event |
+| DELETE | `/api/events/<id>/` | Delete an event |
+| GET | `/api/volunteers/` | List all volunteers |
+| GET | `/api/volunteers/<id>/` | Retrieve a single volunteer |
+
+## Authenticated Endpoints 🔒
+
+Require header: `Authorization: Token <your-token>`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/events/<id>/join/` | Join an event (creates a participation) |
+| GET | `/api/me/participations/` | List your own event registrations |
+| PATCH | `/api/participations/<id>/` | Cancel your registration (sets `status` to `cancelled`) |
+| DELETE | `/api/participations/<id>/` | Remove your registration entirely |
+| GET | `/api/volunteers/me/profile/` | Read your optional profile details (contact, address, background, emergency) |
+| PATCH | `/api/volunteers/me/profile/` | Update any subset of your profile sections |
