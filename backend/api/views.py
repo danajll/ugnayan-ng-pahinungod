@@ -10,6 +10,7 @@ from rest_framework.authtoken.models import Token
 
 from .models import Event, Volunteer, EventParticipation, ParticipationStatus, VolunteerContact, VolunteerAddress, VolunteerBackground, EmergencyContact
 from .serializers import EventSerializer, VolunteerSerializer, EventParticipationSerializer, RegisterSerializer, VolunteerProfileSerializer, VolunteerContactSerializer, VolunteerAddressSerializer, VolunteerBackgroundSerializer, EmergencyContactSerializer
+from .permissions import IsAdminOrReadOnly
 
 # Create your views here.
 
@@ -20,6 +21,7 @@ def health_check(request):
 
 # -- Events CRUD API --
 @api_view(["GET", "POST"])
+@permission_classes([IsAdminOrReadOnly])
 def event_list_create(request):
     """
     GET  /api/events/   → list all events
@@ -39,6 +41,7 @@ def event_list_create(request):
 
 
 @api_view(["GET", "PUT", "PATCH", "DELETE"])
+@permission_classes([IsAdminOrReadOnly])
 def event_detail(request, pk):
     """
     GET    /api/events/<id>/  → retrieve one event
@@ -66,32 +69,24 @@ def event_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# -- Volunteers CRUD API --
-@api_view(["GET", "POST"])
-def volunteer_list_create(request):
+# -- Volunteers API --
+@api_view(["GET"])
+@permission_classes([IsAdminOrReadOnly])
+def volunteer_list(request):
     """
-    GET  /api/volunteers/   -> list all volunteers
-    POST /api/volunteers/   -> create a new volunteer
+    GET /api/volunteers/  → list all volunteers
     """
-    if request.method == "GET":
-        volunteers = Volunteer.objects.all().order_by("-created_at")
-        serializer = VolunteerSerializer(volunteers, many=True)
-        return Response(serializer.data)
-
-    serializer = VolunteerSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    volunteers = Volunteer.objects.all().order_by("-created_at")
+    serializer = VolunteerSerializer(volunteers, many=True)
+    return Response(serializer.data)
 
 
-@api_view(["GET", "PUT", "PATCH", "DELETE"])
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAdminOrReadOnly])
 def volunteer_detail(request, pk):
     """
-    GET    /api/volunteers/<id>/   -> retrieve one volunteer
-    PUT    /api/volunteers/<id>/   -> full update
-    PATCH  /api/volunteers/<id>/   -> partial update
-    DELETE /api/volunteers/<id>/   -> delete
+    GET    /api/volunteers/<id>/  → retrieve one volunteer
+    PATCH  /api/volunteers/<id>/  → partial update (admin only)
     """
     volunteer = get_object_or_404(Volunteer, pk=pk)
 
@@ -99,20 +94,12 @@ def volunteer_detail(request, pk):
         serializer = VolunteerSerializer(volunteer)
         return Response(serializer.data)
 
-    if request.method in ["PUT", "PATCH"]:
-        partial = request.method == "PATCH"
-        serializer = VolunteerSerializer(
-            volunteer,
-            data=request.data,
-            partial=partial,
-        )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    volunteer.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    # PATCH — admin only (IsAdminOrReadOnly handles this)
+    serializer = VolunteerSerializer(volunteer, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # -- EVENT PARTICIPATION -- 
 @api_view(["POST"])
@@ -260,6 +247,8 @@ def login_view(request):
         "token": token.key,
         "user_id": user.id,
         "username": user.username,
+        "is_staff": user.is_staff, 
+        "is_superuser": user.is_superuser, 
     })
 
 # -- ADDITIONAL PROFILE INFORMATION API --

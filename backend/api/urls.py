@@ -16,7 +16,7 @@ urlpatterns = [
 
     # Volunteers CRUD
     path("volunteers/me/profile/", views.my_profile, name="volunteer-me-profile"),
-    path("volunteers/", views.volunteer_list_create, name="volunteer-list-create"),
+    path("volunteers/", views.volunteer_list, name="volunteer-list"),
     path("volunteers/<int:pk>/", views.volunteer_detail, name="volunteer-detail"),
 
     # Participations
