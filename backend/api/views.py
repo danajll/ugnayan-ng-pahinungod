@@ -69,24 +69,34 @@ def event_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# -- Volunteers API --
-@api_view(["GET"])
+# -- Volunteers CRUD API --
+@api_view(["GET", "POST"])
 @permission_classes([IsAdminOrReadOnly])
 def volunteer_list(request):
     """
-    GET /api/volunteers/  → list all volunteers
+    GET  /api/volunteers/  → list all volunteers
+    POST /api/volunteers/  → create a volunteer (admin only)
     """
-    volunteers = Volunteer.objects.all().order_by("-created_at")
-    serializer = VolunteerSerializer(volunteers, many=True)
-    return Response(serializer.data)
+    if request.method == "GET":
+        volunteers = Volunteer.objects.all().order_by("-created_at")
+        serializer = VolunteerSerializer(volunteers, many=True)
+        return Response(serializer.data)
+
+    serializer = VolunteerSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["GET", "PATCH"])
+@api_view(["GET", "PUT", "PATCH", "DELETE"])
 @permission_classes([IsAdminOrReadOnly])
 def volunteer_detail(request, pk):
     """
     GET    /api/volunteers/<id>/  → retrieve one volunteer
+    PUT    /api/volunteers/<id>/  → full update (admin only)
     PATCH  /api/volunteers/<id>/  → partial update (admin only)
+    DELETE /api/volunteers/<id>/  → delete a volunteer (admin only)
     """
     volunteer = get_object_or_404(Volunteer, pk=pk)
 
@@ -94,12 +104,19 @@ def volunteer_detail(request, pk):
         serializer = VolunteerSerializer(volunteer)
         return Response(serializer.data)
 
-    # PATCH — admin only (IsAdminOrReadOnly handles this)
-    serializer = VolunteerSerializer(volunteer, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method in ["PUT", "PATCH"]:
+        serializer = VolunteerSerializer(
+            volunteer,
+            data=request.data,
+            partial=request.method == "PATCH",
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    volunteer.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 # -- EVENT PARTICIPATION -- 
 @api_view(["POST"])
