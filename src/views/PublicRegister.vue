@@ -373,6 +373,16 @@
           </div>
 
           <!-- Form Navigation Actions -->
+          <!-- Back to Home Button (Visible ONLY on Step 1) -->
+            <router-link 
+                v-if="currentStep === 1" 
+                type="button" 
+                to="/" 
+                class="btn-secondary"
+            >
+                BACK TO HOME
+            </router-link>
+
           <div class="action-buttons">
             <button 
               v-if="currentStep > 1" 
@@ -857,8 +867,9 @@ textarea:focus {
 .action-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-top: 1.5rem;
+  align-items: center;
 }
 
 .btn-primary {
@@ -885,6 +896,16 @@ textarea:focus {
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+  text-decoration: none; 
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.btn-secondary:hover {
+  background-color: #f3f4f6;
+  color: #111827;
 }
 
 .form-footer {
