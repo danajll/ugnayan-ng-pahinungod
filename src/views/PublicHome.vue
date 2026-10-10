@@ -532,13 +532,13 @@ const locations = [
 
           <div class="cta-buttons">
 
-            <a class="primary-btn" href="#">
+            <router-link class="primary-btn" to="/register">
 
               Register as Volunteer
 
               <ArrowUpRight :size="14" />
 
-            </a>
+            </router-link>
 
             <a class="secondary-btn" href="#">
               Partner with Us
