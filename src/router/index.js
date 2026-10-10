@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import PublicHome from '../views/PublicHome.vue';
+import PublicRegister from '../views/PublicRegister.vue'
+import PublicLogin from '../views/PublicLogin.vue'
 
 import AdminLayout from '../views/admin/AdminLayout.vue';
 import AdminDashboard from '../views/admin/AdminDashboard.vue';
@@ -15,7 +17,16 @@ const routes = [
     path: '/',
     component: PublicHome
   },
-
+  {
+    path: '/register',
+    name: 'register',
+    component: PublicRegister
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: PublicLogin
+  }, 
   {
     path: '/admin',
     component: AdminLayout,
@@ -55,7 +66,7 @@ const routes = [
 
 const router = createRouter({
 
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
 
   routes
 
