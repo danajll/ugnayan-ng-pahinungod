@@ -108,7 +108,8 @@ class Volunteer(models.Model):
     hobbies = models.TextField(blank=True)                      
     affiliated_organizations = models.TextField(blank=True)      
     permanent_address = models.TextField()                       
-    up_address = models.TextField(blank=True)                    
+    up_address = models.TextField(blank=True)  
+    senior_high_school = models.CharField(max_length=300, blank=True)                  
 
     # ── Affiliation ──
     affiliation_type = models.CharField(
@@ -262,7 +263,7 @@ class StudentProfile(models.Model):
     student_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
     course = models.CharField(max_length=100, blank=True)
 
-    senior_high_school = models.CharField(max_length=300, blank=True)
+    # senior_high_school = models.CharField(max_length=300, blank=True)
     bachelor_degree = models.CharField(max_length=300, blank=True)
     first_to_college = models.CharField(
         max_length=3, choices=YesNo.choices, blank=True,
