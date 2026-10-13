@@ -6,9 +6,8 @@
         <h1 class="hero-title">
           MAKIBAHAGI<br />
           MAGLINGKOD<br />
-          MAG <span class="highlight">PAHINUNGÓD</span>
+          MAG<span class="highlight">PAHINUNGÓD</span>
         </h1>
-
         <div class="hero-icon">
           <img src="/images/assets/oble.png" alt="Oblation" class="hero-logo" />
         </div>
@@ -373,6 +372,16 @@
           </div>
 
           <!-- Form Navigation Actions -->
+          <!-- Back to Home Button (Visible ONLY on Step 1) -->
+            <router-link 
+                v-if="currentStep === 1" 
+                type="button" 
+                to="/" 
+                class="btn-secondary"
+            >
+                BACK TO HOME
+            </router-link>
+
           <div class="action-buttons">
             <button 
               v-if="currentStep > 1" 
@@ -384,7 +393,7 @@
             </button>
             
             <button type="submit" class="btn-primary">
-              <span v-if="currentStep < 4">NEXT STEP &rarr;</span>
+              <span v-if="currentStep < 4">NEXT STEP</span>
               <span v-else>SUBMIT / UPDATE REGISTRATION &#x2713;</span>
             </button>
           </div>
@@ -501,13 +510,13 @@ const handleNextOrSubmit = () => {
 .hero-title {
   color: #fff;
   text-align: center;
-  font-family: "Nimbus Sans";
-  font-size: 48px;
+  font-family: "Inter";
+  font-size: 40px;
   font-style: normal;
   font-weight: 900;
   line-height: 52px;
   letter-spacing: 2.6px;
-  margin-bottom: 2.5rem;
+  margin-bottom: .5rem;
   text-transform: uppercase;
 }
 
@@ -524,6 +533,7 @@ const handleNextOrSubmit = () => {
   width: 159px;
   height: 159px;
   aspect-ratio: 1/1;
+  
 }
 
 /* Right Container Styling */
@@ -857,8 +867,9 @@ textarea:focus {
 .action-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-top: 1.5rem;
+  align-items: center;
 }
 
 .btn-primary {
@@ -885,6 +896,16 @@ textarea:focus {
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+  text-decoration: none; 
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.btn-secondary:hover {
+  background-color: #f3f4f6;
+  color: #111827;
 }
 
 .form-footer {
