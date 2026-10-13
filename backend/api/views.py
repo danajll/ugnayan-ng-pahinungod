@@ -1,5 +1,5 @@
 from datetime import datetime
-from django.conf import settings
+from django.conf import settings as django_settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -10,6 +10,8 @@ from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 
 from .models import (Event, Volunteer, EventParticipation, ParticipationStatus, VolunteerContact, VolunteerAddress, VolunteerBackground, EmergencyContact,
     VolunteerMeta, StudentProfile, FacultyProfile, StaffProfile, AlumniProfile, Program, Subject, VolunteerBackgroundStatus,
@@ -398,3 +400,79 @@ def complete_onboarding(request):
         "volunteer_id": volunteer.id,
         "is_profile_complete": True,
     })
+
+@api_view(["POST"])
+def google_login(request):
+    """
+    POST /api/auth/google/
+    Body: {"id_token": "<google-id-token>"}
+
+    Verifies the Google ID token, enforces @up.edu.ph domain,
+    creates User + Volunteer if new, returns auth token + onboarding flag.
+    """
+
+    token = request.data.get("id_token")
+    if not token:
+        return Response(
+            {"detail": "id_token is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        idinfo = google_id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            django_settings.SOCIALACCOUNT_PROVIDERS["google"]["APP"]["client_id"],
+        )
+    except ValueError as e:
+        return Response(
+            {"detail": f"Invalid token: {e}"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    email = idinfo.get("email", "")
+    if not email.endswith("@up.edu.ph"):
+        return Response(
+            {"detail": "Only @up.edu.ph accounts are allowed."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Get or create the User
+    user, created = User.objects.get_or_create(
+        username=email,
+        defaults={
+            "email": email,
+            "first_name": idinfo.get("given_name", ""),
+            "last_name": idinfo.get("family_name", ""),
+        },
+    )
+
+    # Get or create the Volunteer (placeholders here to fill REQUIRED fields, they are overwritten in Onboarding/When an account fills up the form)
+    volunteer, vol_created = Volunteer.objects.get_or_create(
+        user=user,
+        defaults={
+            "volunteer_identifier": f"VOL-{user.id:05d}",
+            "first_name": idinfo.get("given_name", ""),
+            "last_name": idinfo.get("family_name", ""),
+            "sex": "M",                       # overwritten on onboarding
+            "birthdate": "2000-01-01",        # poverwritten on onboarding
+            "mobile_number": "",
+            "permanent_address": "",
+            "affiliation_type": "student",    # overwritten on onboarding
+            "is_profile_complete": False,
+        },
+    )
+
+    token_obj, _ = Token.objects.get_or_create(user=user)
+
+    return Response(
+        {
+            "token": token_obj.key,
+            "user_id": user.id,
+            "email": user.email,
+            "volunteer_id": volunteer.id,
+            "is_profile_complete": volunteer.is_profile_complete,
+            "created": created,
+        },
+        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+    )
