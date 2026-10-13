@@ -6,9 +6,8 @@
         <h1 class="hero-title">
           MAKIBAHAGI<br />
           MAGLINGKOD<br />
-          MAG <span class="highlight">PAHINUNGÓD</span>
+          MAG<span class="highlight">PAHINUNGÓD</span>
         </h1>
-
         <div class="hero-icon">
           <img src="/images/assets/oble.png" alt="Oblation" class="hero-logo" />
         </div>
@@ -394,7 +393,7 @@
             </button>
             
             <button type="submit" class="btn-primary">
-              <span v-if="currentStep < 4">NEXT STEP &rarr;</span>
+              <span v-if="currentStep < 4">NEXT STEP</span>
               <span v-else>SUBMIT / UPDATE REGISTRATION &#x2713;</span>
             </button>
           </div>
@@ -511,13 +510,13 @@ const handleNextOrSubmit = () => {
 .hero-title {
   color: #fff;
   text-align: center;
-  font-family: "Nimbus Sans";
-  font-size: 48px;
+  font-family: "Inter";
+  font-size: 40px;
   font-style: normal;
   font-weight: 900;
   line-height: 52px;
   letter-spacing: 2.6px;
-  margin-bottom: 2.5rem;
+  margin-bottom: .5rem;
   text-transform: uppercase;
 }
 
@@ -534,6 +533,7 @@ const handleNextOrSubmit = () => {
   width: 159px;
   height: 159px;
   aspect-ratio: 1/1;
+  
 }
 
 /* Right Container Styling */

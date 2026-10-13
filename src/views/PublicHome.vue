@@ -117,7 +117,7 @@ const locations = [
         <a href="#programs">Programs</a>
         <a href="#events">Upcoming Events</a>
         <a href="#register">Register</a>
-        <a href="#login">Log in</a>
+        <router-link to="/login">Log in</router-link>
 
       </nav>
 
