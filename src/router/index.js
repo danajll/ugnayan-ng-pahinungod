@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import PublicHome from '../views/PublicHome.vue';
-import PublicRegister from '../views/PublicRegister.vue'
-import PublicLogin from '../views/PublicLogin.vue'
+import PublicRegister from '../views/sign/PublicRegister.vue'
+import PublicLogin from '../views/sign/PublicLogin.vue'
 
 import AdminLayout from '../views/admin/AdminLayout.vue';
 import AdminDashboard from '../views/admin/AdminDashboard.vue';
