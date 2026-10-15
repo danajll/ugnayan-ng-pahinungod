@@ -6,7 +6,15 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Event, EventParticipation, ParticipationStatus, Volunteer
+from .models import (
+    Badge,
+    BadgeCriteriaType,
+    Event,
+    EventParticipation,
+    ParticipationStatus,
+    Volunteer,
+    VolunteerBadge,
+)
 
 
 class ApiTestCase(APITestCase):
@@ -285,6 +293,132 @@ class EventParticipationTests(ApiTestCase):
             reverse("participation-detail", args=[participation.pk])
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class BadgeApiTests(ApiTestCase):
+    def setUp(self):
+        self.admin = self.user("badge-admin", staff=True)
+        self.volunteer_user, self.volunteer_record = self.volunteer("badge-volunteer")
+        self.badge = Badge.objects.create(
+            name="Service Star",
+            description="Awarded after service.",
+            icon_url="https://example.com/service-star.png",
+            criteria_type=BadgeCriteriaType.HOURS,
+        )
+
+    def test_badge_list_is_public_and_badge_management_is_admin_only(self):
+        response = self.client.get(reverse("badge-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["name"], "Service Star")
+
+        response = self.client.post(
+            reverse("badge-list"),
+            {"name": "New Badge", "criteria_type": BadgeCriteriaType.MANUAL},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            reverse("badge-list"),
+            {"name": "New Badge", "criteria_type": BadgeCriteriaType.MANUAL},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_award_rejects_unmet_service_hours_criteria(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            reverse("badge-award", args=[self.badge.pk]),
+            {"volunteer": self.volunteer_record.pk},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["detail"],
+            "Badge criteria not met: at least 1 service hour is required.",
+        )
+        self.assertFalse(
+            VolunteerBadge.objects.filter(
+                volunteer=self.volunteer_record,
+                badge=self.badge,
+            ).exists()
+        )
+
+    def test_admin_can_award_eligible_badge_with_embedded_details(self):
+        event = Event.objects.create(
+            name="Cleanup",
+            description="Cleanup event.",
+            start_datetime=timezone.now(),
+            end_datetime=timezone.now() + timedelta(hours=2),
+            location="Campus",
+        )
+        EventParticipation.objects.create(
+            volunteer=self.volunteer_record,
+            event=event,
+            status=ParticipationStatus.ATTENDED,
+            hours_rendered=4,
+        )
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            reverse("badge-award", args=[self.badge.pk]),
+            {"volunteer": self.volunteer_record.pk, "event": event.pk},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["badge"]["id"], self.badge.pk)
+        self.assertEqual(response.data["badge"]["name"], "Service Star")
+        self.assertEqual(response.data["event"], event.pk)
+        self.assertTrue(
+            VolunteerBadge.objects.filter(
+                volunteer=self.volunteer_record,
+                badge=self.badge,
+                event=event,
+            ).exists()
+        )
+
+    def test_awarding_duplicate_badge_is_rejected(self):
+        self.client.force_authenticate(self.admin)
+        EventParticipation.objects.create(
+            volunteer=self.volunteer_record,
+            event=Event.objects.create(
+                name="Cleanup",
+                start_datetime=timezone.now(),
+                end_datetime=timezone.now() + timedelta(hours=1),
+            ),
+            status=ParticipationStatus.ATTENDED,
+            hours_rendered=1,
+        )
+        award_url = reverse("badge-award", args=[self.badge.pk])
+        self.assertEqual(
+            self.client.post(
+                award_url,
+                {"volunteer": self.volunteer_record.pk},
+                format="json",
+            ).status_code,
+            status.HTTP_201_CREATED,
+        )
+        response = self.client.post(
+            award_url,
+            {"volunteer": self.volunteer_record.pk},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_awarded_badges_are_readable_with_embedded_badge_data(self):
+        VolunteerBadge.objects.create(
+            volunteer=self.volunteer_record,
+            badge=self.badge,
+        )
+
+        response = self.client.get(reverse("volunteer-badge-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["volunteer"], self.volunteer_record.pk)
+        self.assertEqual(response.data[0]["badge"]["description"], "Awarded after service.")
 
 
 class ProfileTests(ApiTestCase):
