@@ -1,18 +1,125 @@
 from django.shortcuts import render
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate
 from django.db import transaction
 from rest_framework.authtoken.models import Token
 
-from .models import Event, Volunteer, EventParticipation, ParticipationStatus, VolunteerContact, VolunteerAddress, VolunteerBackground, EmergencyContact
-from .serializers import EventSerializer, VolunteerSerializer, EventParticipationSerializer, RegisterSerializer, VolunteerProfileSerializer, VolunteerContactSerializer, VolunteerAddressSerializer, VolunteerBackgroundSerializer, EmergencyContactSerializer
+from .models import (
+    Badge,
+    BadgeCriteriaType,
+    Event,
+    EventParticipation,
+    ParticipationStatus,
+    Volunteer,
+    VolunteerAddress,
+    VolunteerBackground,
+    VolunteerBadge,
+    VolunteerContact,
+    EmergencyContact,
+)
+from .serializers import (
+    BadgeSerializer,
+    EmergencyContactSerializer,
+    EventParticipationSerializer,
+    EventSerializer,
+    RegisterSerializer,
+    VolunteerAddressSerializer,
+    VolunteerBackgroundSerializer,
+    VolunteerBadgeReadSerializer,
+    VolunteerContactSerializer,
+    VolunteerProfileSerializer,
+    VolunteerSerializer,
+)
 from .permissions import IsAdminOrReadOnly
 
 # Create your views here.
+
+
+class BadgeViewSet(viewsets.ModelViewSet):
+    """
+    GET requests are public; badge management and awarding require staff access.
+    """
+
+    queryset = Badge.objects.all().order_by("name")
+    serializer_class = BadgeSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    @action(detail=True, methods=["post"], url_path="award")
+    def award(self, request, pk=None):
+        badge = self.get_object()
+        volunteer_id = request.data.get("volunteer")
+        event_id = request.data.get("event")
+
+        if not volunteer_id:
+            return Response(
+                {"volunteer": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        volunteer = get_object_or_404(Volunteer, pk=volunteer_id)
+        event = None
+        if event_id is not None:
+            event = get_object_or_404(Event, pk=event_id)
+
+        if badge.criteria_type == BadgeCriteriaType.HOURS:
+            criteria_met = volunteer.service_hours > 0
+            criteria_message = "at least 1 service hour is required"
+        elif badge.criteria_type == BadgeCriteriaType.EVENT_COUNT:
+            criteria_met = volunteer.event_participations.filter(
+                status=ParticipationStatus.ATTENDED,
+            ).exists()
+            criteria_message = "at least 1 attended event is required"
+        else:
+            criteria_met = True
+            criteria_message = ""
+
+        if not criteria_met:
+            return Response(
+                {
+                    "detail": (
+                        "Badge criteria not met: "
+                        f"{criteria_message}."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if VolunteerBadge.objects.filter(
+            volunteer=volunteer,
+            badge=badge,
+        ).exists():
+            return Response(
+                {"detail": "This badge has already been awarded to the volunteer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        volunteer_badge = VolunteerBadge.objects.create(
+            volunteer=volunteer,
+            badge=badge,
+            event=event,
+        )
+        return Response(
+            VolunteerBadgeReadSerializer(volunteer_badge).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VolunteerBadgeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Explicitly assembled awarded-badge data for profile and frontend retrieval.
+    """
+
+    queryset = VolunteerBadge.objects.select_related(
+        "badge",
+        "event",
+        "volunteer",
+    ).order_by("-date_awarded")
+    serializer_class = VolunteerBadgeReadSerializer
+
 
 # -- Health Check API --
 @api_view(["GET"])
