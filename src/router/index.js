@@ -11,6 +11,13 @@ import AdminVolunteers from '../views/admin/AdminVolunteers.vue';
 import AdminProgress from '../views/admin/AdminProgress.vue';
 import AdminSettings from '../views/admin/AdminSettings.vue';
 
+import UserLayout from '../views/user/UserLayout.vue';
+import UserHome from '../views/user/UserHome.vue';
+import UserEvents from '../views/user/UserEvents.vue';
+import UserPrograms from '../views/user/UserPrograms.vue';
+import UserProfile from '../views/user/UserProfile.vue';
+import UserProfileEdit from '../views/user/UserProfileEdit.vue';
+
 const routes = [
 
   {
@@ -27,6 +34,17 @@ const routes = [
     name: 'login',
     component: PublicLogin
   }, 
+  {
+    path: '/user',
+    component: UserLayout,
+    children: [
+      { path: '', component: UserHome },
+      { path: 'events', component: UserEvents },
+      { path: 'programs', component: UserPrograms },
+      { path: 'profile', component: UserProfile },
+      { path: 'profile/edit', component: UserProfileEdit }
+    ]
+  },
   {
     path: '/admin',
     component: AdminLayout,
