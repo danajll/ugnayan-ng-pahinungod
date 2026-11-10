@@ -1,1366 +1,263 @@
 <script setup>
-
-import { computed, ref } from 'vue';
-
+import { computed, ref, onMounted } from 'vue'
 import {
+  Search, ChevronDown, CalendarDays, MapPin, UsersRound,
+  Pencil, X, Flag, List, Bold, Italic, SlidersHorizontal,
+  UploadCloud, Trash2, Map, UserRound, Clock3
+} from 'lucide-vue-next'
+import { eventService } from '../../api/events'
 
-  Search,
-  ChevronDown,
-  CalendarDays,
-  MapPin,
-  UsersRound,
-  Pencil,
-  X,
-  Flag,
-  List,
-  Bold,
-  Italic,
-  SlidersHorizontal,
-  UploadCloud,
-  Trash2,
-  Map,
-  UserRound,
-  Clock3
-} from 'lucide-vue-next';
-
-
-
-
-const search = ref('');
-
-const region = ref('Davao Region');
-
-const regionOpen = ref(false);
-
-const status = ref('All');
-
-const category = ref('ALL MISSIONS');
-
-
-
+// ─── UI state ───
+const search = ref('')
+const region = ref('Davao Region')
+const regionOpen = ref(false)
+const status = ref('All')
+const category = ref('ALL MISSIONS')
 
 const regions = [
-
-  'All Regions',
-
-  'National Capital Region (NCR)',
-
-  'Cordillera Administrative Region (CAR)',
-
-  'Ilocos Region (Region I)',
-
-  'Cagayan Valley (Region II)',
-
-  'Central Luzon (Region III)',
-
-  'CALABARZON (Region IV-A)',
-
-  'MIMAROPA (Region IV-B)',
-
-  'Bicol Region (Region V)',
-
-  'Western Visayas (Region VI)',
-
-  'Negros Island Region (NIR)',
-
-  'Central Visayas (Region VII)',
-
-  'Eastern Visayas (Region VIII)',
-
-  'Zamboanga Peninsula (Region IX)',
-
-  'Northern Mindanao (Region X)',
-
-  'Davao Region (Region XI)',
-
-  'SOCCSKSARGEN (Region XII)',
-
-  'Caraga (Region XIII)',
-
+  'All Regions', 'National Capital Region (NCR)', 'Cordillera Administrative Region (CAR)',
+  'Ilocos Region (Region I)', 'Cagayan Valley (Region II)', 'Central Luzon (Region III)',
+  'CALABARZON (Region IV-A)', 'MIMAROPA (Region IV-B)', 'Bicol Region (Region V)',
+  'Western Visayas (Region VI)', 'Negros Island Region (NIR)', 'Central Visayas (Region VII)',
+  'Eastern Visayas (Region VIII)', 'Zamboanga Peninsula (Region IX)',
+  'Northern Mindanao (Region X)', 'Davao Region (Region XI)',
+  'SOCCSKSARGEN (Region XII)', 'Caraga (Region XIII)',
   'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)'
-
-];
-
-
-
-const selectRegion = (item) => {
-
-  region.value = item;
-
-  regionOpen.value = false;
-
-};
-
-
-
-
-const statuses = [
-
-  'All',
-
-  'Published',
-
-  'Scheduled',
-
-  'Drafts'
-
-];
-
-
-
-
+]
+const statuses = ['All', 'Published', 'Scheduled', 'Drafts']
 const categories = [
-
-  'ALL MISSIONS',
-
-  'HEALTH',
-
-  'EDUCATION & LITERACY',
-
-  'ENVIRONMENT & ECOLOGY',
-
-  'NSTP / CWTS',
-
-  'INDIGENOUS PEOPLES (IP)'
-
-];
-
-
-
-
-const events = ref([
-
-  {
-
-    id: 1,
-
-    title: 'UPmin Bloodletting Activity',
-
-    category: 'HEALTH',
-
-    date: 'Dec 02 - Dec 04, 2026',
-
-    location: 'Mintal, Davao City',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/bloodletting.jpg',
-
-    status: 'Published',
-
-    displayStatus: 'COMPLETED',
-
-    quota: 40,
-
-    registered: 32,
-
-    quotaLabel: 'Registered',
-
-    tags: [
-
-      'Healthcare Professionals/Med Personnel',
-
-      'DHK Students',
-
-      'NSTP Accredited'
-
-    ],
-
-    lead: 'Prof. D. Santiago (SOM)'
-
-  },
-
-  {
-
-    id: 2,
-
-    title:
-
-      'Affirmative Action Program (AAP) UPCAT Campaign',
-
-    category: 'EDUCATION & LITERACY',
-
-    date: 'Dec 6 - Dec 8, 2026',
-
-    location: 'Pantukan, Davao de Oro',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/education.jpg',
-
-    status: 'Published',
-
-    displayStatus: 'ONGOING',
-
-    quota: 25,
-
-    registered: 18,
-
-    quotaLabel: 'Registered',
-
-    tags: [
-
-      'All Iskolar Fellows',
-
-      'Reading Mentorship',
-
-      'CWTS Credit'
-
-    ],
-
-    lead: 'Pahinungod Literacy Desk'
-
-  },
-
-  {
-
-    id: 3,
-
-    title: 'Tree Planting Activity',
-
-    category: 'ENVIRONMENT & ECOLOGY',
-
-    date: 'Dec 14, 2026',
-
-    location: 'Marahan Botanical Garden',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/nature.jpg',
-
-    status: 'Published',
-
-    displayStatus: 'RECRUITING',
-
-    quota: 50,
-
-    registered: 50,
-
-    quotaLabel: 'Filled',
-
-    tags: [
-
-      'CSM / Science Majors',
-
-      'Field Logistics',
-
-      'Ecological Survey'
-
-    ],
-
-    lead: 'Dept. of Biological Sciences'
-
-  },
-
-  {
-
-    id: 4,
-
-    title: 'Donation Drive',
-
-    category: 'DONATION DRIVE',
-
-    date: 'Dec 14, 2026',
-
-    location: 'Mintal, Davao City',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/donation.jpg',
-
-    status: 'Published',
-
-    displayStatus: 'RECRUITING',
-
-    quota: 10,
-
-    registered: 10,
-
-    quotaLabel: 'Filled',
-
-    tags: [
-
-      'CSM / Science Majors',
-
-      'Field Logistics',
-
-      'Ecological Survey'
-
-    ],
-
-    lead: 'Dept. of Biological Sciences'
-
-  },
-
-
-
-
-  {
-
-    id: 5,
-
-    title: 'UPmin Bloodletting Activity',
-
-    category: 'HEALTH',
-
-    date: 'Dec 02 - Dec 04, 2026',
-
-    location: 'Mintal, Davao City',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/bloodletting.jpg',
-
-    status: 'Scheduled',
-
-    displayStatus: 'SCHEDULED',
-
-    time: '7:00 pm',
-
-    quota: 40,
-
-    registered: 0,
-
-    quotaLabel: 'Registered',
-
-    tags: [
-
-      'Healthcare Professionals/Med Personnel',
-
-      'DHK Students',
-
-      'NSTP Accredited'
-
-    ],
-
-    lead: 'Prof. D. Santiago (SOM)'
-
-  },
-
-  {
-
-    id: 6,
-
-    title:
-
-      'Affirmative Action Program (AAP) UPCAT Campaign',
-
-    category: 'EDUCATION & LITERACY',
-
-    date: 'Dec 6 - Dec 8, 2026',
-
-    location: 'Pantukan, Davao de Oro',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/education.jpg',
-
-    status: 'Scheduled',
-
-    displayStatus: 'SCHEDULED',
-
-    time: '7:00 pm',
-
-    quota: 25,
-
-    registered: 0,
-
-    quotaLabel: 'Registered',
-
-    tags: [
-
-      'All Iskolar Fellows',
-
-      'Reading Mentorship',
-
-      'CWTS Credit'
-
-    ],
-
-    lead: 'Pahinungod Literacy Desk'
-
-  },
-
-  {
-
-    id: 7,
-
-    title: 'Tree Planting Activity',
-
-    category: 'ENVIRONMENT & ECOLOGY',
-
-    date: 'Dec 14, 2026',
-
-    location: 'Marahan Botanical Garden',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/nature.jpg',
-
-    status: 'Scheduled',
-
-    displayStatus: 'SCHEDULED',
-
-    time: '7:00 pm',
-
-    quota: 50,
-
-    registered: 0,
-
-    quotaLabel: 'Filled',
-
-    tags: [
-
-      'CSM / Science Majors',
-
-      'Field Logistics',
-
-      'Ecological Survey'
-
-    ],
-
-    lead: 'Dept. of Biological Sciences'
-
-  },
-
-  {
-
-    id: 8,
-
-    title: 'Donation Drive',
-
-    category: 'DONATION DRIVE',
-
-    date: 'Dec 14, 2026',
-
-    location: 'Mintal, Davao City',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/donation.jpg',
-
-    status: 'Scheduled',
-
-    displayStatus: 'SCHEDULED',
-
-    time: '7:00 pm',
-
-    quota: 10,
-
-    registered: 0,
-
-    quotaLabel: 'Filled',
-
-    tags: [
-
-      'CSM / Science Majors',
-
-      'Field Logistics',
-
-      'Ecological Survey'
-
-    ],
-
-    lead: 'Dept. of Biological Sciences'
-
-  },
-
-
-
-
-  {
-
-    id: 9,
-
-    title: 'UPmin Bloodletting Activity',
-
-    category: 'HEALTH',
-
-    date: 'Dec 02 - Dec 04, 2026',
-
-    location: 'Mintal, Davao City',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/bloodletting.jpg',
-
-    status: 'Drafts',
-
-    displayStatus: 'DRAFT',
-
-    time: '7:00 pm',
-
-    quota: 40,
-
-    registered: 0,
-
-    quotaLabel: 'Registered',
-
-    tags: [
-
-      'Healthcare Professionals/Med Personnel',
-
-      'DHK Students',
-
-      'NSTP Accredited'
-
-    ],
-
-    lead: 'Prof. D. Santiago (SOM)'
-
-  },
-
-  {
-
-    id: 10,
-
-    title:
-
-      'Affirmative Action Program (AAP) UPCAT Campaign',
-
-    category: 'EDUCATION & LITERACY',
-
-    date: 'Dec 6 - Dec 8, 2026',
-
-    location: 'Pantukan, Davao de Oro',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/education.jpg',
-
-    status: 'Drafts',
-
-    displayStatus: 'DRAFT',
-
-    time: '7:00 pm',
-
-    quota: 25,
-
-    registered: 0,
-
-    quotaLabel: 'Registered',
-
-    tags: [
-
-      'All Iskolar Fellows',
-
-      'Reading Mentorship',
-
-      'CWTS Credit'
-
-    ],
-
-    lead: 'Pahinungod Literacy Desk'
-
-  },
-
-  {
-
-    id: 11,
-
-    title: 'Tree Planting Activity',
-
-    category: 'ENVIRONMENT & ECOLOGY',
-
-    date: 'Dec 14, 2026',
-
-    location: 'Marahan Botanical Garden',
-
-    region: 'Davao Region',
-
-    description:
-
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-
-    image: '/images/programs/nature.jpg',
-
-    status: 'Drafts',
-
-    displayStatus: 'DRAFT',
-
-    time: '7:00 pm',
-
-    quota: 50,
-
-    registered: 0,
-
-    quotaLabel: 'Filled',
-
-    tags: [
-
-      'CSM / Science Majors',
-
-      'Field Logistics',
-
-      'Ecological Survey'
-
-    ],
-
-    lead: 'Dept. of Biological Sciences'
-
+  'ALL MISSIONS', 'HEALTH', 'EDUCATION & LITERACY',
+  'ENVIRONMENT & ECOLOGY', 'NSTP / CWTS', 'INDIGENOUS PEOPLES (IP)'
+]
+const selectRegion = (item) => { region.value = item; regionOpen.value = false }
+
+// ─── API state ───
+const events = ref([])
+const loading = ref(true)
+const loadError = ref(null)
+
+// Map a Django Event to the shape the template expects
+const mapEvent = (e) => ({
+  id: e.id,
+  title: e.name,
+  category: e.category,
+  date: new Date(e.start_datetime).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  }),
+  // Keep raw ISO strings so the edit modal can prefill date inputs
+  start_datetime: e.start_datetime,
+  end_datetime: e.end_datetime,
+  location: e.location || 'Location to be announced',
+  region: 'Davao Region', // not on the model yet
+  description: e.description || '',
+  image: e.cover_image || '/images/programs/bloodletting.jpg',
+  status: e.status,
+  displayStatus:
+    e.status === 'Published' ? 'RECRUITING'
+    : e.status === 'Scheduled' ? 'SCHEDULED'
+    : 'DRAFT',
+  time: null,
+  quota: e.quota ?? 0,
+  registered: 0, // will come from EventParticipation later
+  quotaLabel: 'Registered',
+  tags: e.prerequisites || [],
+  lead: 'Pahinungod Office' // not on the model yet
+})
+
+async function refreshEvents() {
+  loading.value = true
+  loadError.value = null
+  try {
+    const { data } = await eventService.list()
+    events.value = data.map(mapEvent)
+  } catch (err) {
+    loadError.value = err.response?.data?.detail || 'Failed to load events.'
+    console.error(err)
+  } finally {
+    loading.value = false
   }
+}
 
-]);
+onMounted(refreshEvents)
 
-
-
-
+// ─── Filtering ───
 const filteredEvents = computed(() => {
-
+  const s = search.value.trim().toLowerCase()
   return events.value.filter((event) => {
-
-    const searchValue =
-
-      search.value
-
-        .trim()
-
-        .toLowerCase();
-
     const matchesSearch =
-
-      event.title
-
-        .toLowerCase()
-
-        .includes(searchValue)
-
-      ||
-
-      event.location
-
-        .toLowerCase()
-
-        .includes(searchValue)
-
-      ||
-
-      event.lead
-
-        .toLowerCase()
-
-        .includes(searchValue);
-
-    const matchesStatus =
-
-      status.value === 'All'
-
-      ||
-
-      event.status === status.value;
-
-    const matchesCategory =
-
-      category.value === 'ALL MISSIONS'
-
-      ||
-
-      event.category === category.value;
-
-    const matchesRegion =
-
-      region.value === 'All Regions'
-
-      ||
-
-      event.region === region.value;
-
-    return (
-
-      matchesSearch
-
-      &&
-
-      matchesStatus
-
-      &&
-
-      matchesCategory
-
-      &&
-
-      matchesRegion
-
-    );
-
-  });
-
-});
-
-
-
+      event.title.toLowerCase().includes(s) ||
+      event.location.toLowerCase().includes(s) ||
+      event.lead.toLowerCase().includes(s)
+    const matchesStatus = status.value === 'All' || event.status === status.value
+    const matchesCategory = category.value === 'ALL MISSIONS' || event.category === category.value
+    const matchesRegion = region.value === 'All Regions' || event.region === region.value
+    return matchesSearch && matchesStatus && matchesCategory && matchesRegion
+  })
+})
 
 const getStatusClass = (event) => {
+  if (event.displayStatus === 'COMPLETED') return 'completed'
+  if (event.displayStatus === 'ONGOING') return 'ongoing'
+  if (event.displayStatus === 'SCHEDULED') return 'scheduled'
+  if (event.displayStatus === 'DRAFT') return 'draft'
+  return 'recruiting'
+}
 
-  if (event.displayStatus === 'COMPLETED') {
+// ─── Create / Edit modal ───
+const createModalOpen = ref(false)
+const editingEvent = ref(null)
 
-    return 'completed';
-
-  }
-
-  if (event.displayStatus === 'ONGOING') {
-
-    return 'ongoing';
-
-  }
-
-  if (event.displayStatus === 'SCHEDULED') {
-
-    return 'scheduled';
-
-  }
-
-  if (event.displayStatus === 'DRAFT') {
-
-    return 'draft';
-
-  }
-
-  return 'recruiting';
-
-};
-
-
-
-
-const createModalOpen = ref(false);
-
-const editingEvent = ref(null);
-
-const newEvent = ref({
-
+const emptyEvent = () => ({
   title: '',
-
   category: 'HEALTH',
-
   description: '',
-
   startDate: '',
-
   endDate: '',
-
   region: 'Davao Region',
-
   venue: '',
-
   quota: 40,
-
   accreditedHours: 24,
-
   leadCoordinator: '',
-
   prerequisites: [],
-
   coverImage: null,
-
   publicationState: 'draft'
-
-});
-
-
+})
+const newEvent = ref(emptyEvent())
 
 const prerequisiteOptions = [
-
-  'Healthcare / SOM Medical',
-
-  'CWTS / NSTP Accredited',
-
-  'CSM / Science Majors',
-
-  'First Aid Certified (BLS)',
-
-  'Indigenous Language Fluent',
-
-  'Open to All Iskolar Volunteers'
-
-];
-
-
+  'Healthcare / SOM Medical', 'CWTS / NSTP Accredited', 'CSM / Science Majors',
+  'First Aid Certified (BLS)', 'Indigenous Language Fluent', 'Open to All Iskolar Volunteers'
+]
 
 const togglePrerequisite = (item) => {
-
   if (newEvent.value.prerequisites.includes(item)) {
-
-    newEvent.value.prerequisites =
-
-      newEvent.value.prerequisites.filter(
-
-        (prerequisite) =>
-
-          prerequisite !== item
-
-      );
-
-    return;
-
+    newEvent.value.prerequisites = newEvent.value.prerequisites.filter(p => p !== item)
+  } else {
+    newEvent.value.prerequisites.push(item)
   }
+}
 
-  newEvent.value.prerequisites.push(item);
-
-};
-
-
-
-const resetNewEvent = () => {
-
-  newEvent.value = {
-
-    title: '',
-
-    category: 'HEALTH',
-
-    description: '',
-
-    startDate: '',
-
-    endDate: '',
-
-    region: 'Davao Region',
-
-    venue: '',
-
-    quota: 40,
-
-    accreditedHours: 24,
-
-    leadCoordinator: '',
-
-    prerequisites: [],
-
-    coverImage: null,
-
-    publicationState: 'draft'
-
-  };
-
-};
-
-
+const resetNewEvent = () => { newEvent.value = emptyEvent() }
 
 const openCreateModal = () => {
-
-  editingEvent.value = null;
-
-  resetNewEvent();
-
-  createModalOpen.value = true;
-
-};
-
-
-
-const formatDate = (date) => {
-
-  if (!date) {
-
-    return '';
-
-  }
-
-  const parts = date.split('-');
-
-  return `${parts[1]}/${parts[2]}/${parts[0]}`;
-
-};
-
-
+  editingEvent.value = null
+  resetNewEvent()
+  createModalOpen.value = true
+}
 
 const openEditModal = (event) => {
-
-  editingEvent.value = event;
-
+  editingEvent.value = event
+  // Extract YYYY-MM-DD from the ISO datetime for <input type="date">
+  const toDateInput = (iso) => iso ? iso.slice(0, 10) : ''
   newEvent.value = {
-
     title: event.title,
-
     category: event.category,
-
     description: event.description,
-
-    startDate: '',
-
-    endDate: '',
-
+    startDate: toDateInput(event.start_datetime),
+    endDate: toDateInput(event.end_datetime),
     region: event.region,
-
     venue: event.location,
-
     quota: event.quota,
-
     accreditedHours: 24,
-
     leadCoordinator: event.lead,
-
     prerequisites: [...event.tags],
-
     coverImage: null,
-
     publicationState:
-
-      event.status === 'Drafts'
-
-        ? 'draft'
-
-        : event.status === 'Scheduled'
-
-          ? 'scheduled'
-
-          : 'published'
-
-  };
-
-  createModalOpen.value = true;
-
-};
-
-
+      event.status === 'Drafts' ? 'draft'
+      : event.status === 'Scheduled' ? 'scheduled'
+      : 'published'
+  }
+  createModalOpen.value = true
+}
 
 const closeCreateModal = () => {
+  createModalOpen.value = false
+  editingEvent.value = null
+  resetNewEvent()
+}
 
-  createModalOpen.value = false;
-
-  editingEvent.value = null;
-
-  resetNewEvent();
-
-};
-
-
-
-
-const saveNewEvent = (publicationState) => {
-
-  let eventStatus = 'Drafts';
-
-  let displayStatus = 'DRAFT';
-
-  if (publicationState === 'scheduled') {
-
-    eventStatus = 'Scheduled';
-
-    displayStatus = 'SCHEDULED';
-
+// Build a payload that matches the EventSerializer
+const buildPayload = () => {
+  const toIso = (dateStr, timeStr = '08:00:00') => {
+    if (!dateStr) return null
+    return new Date(`${dateStr}T${timeStr}`).toISOString()
   }
-
-  if (publicationState === 'published') {
-
-    eventStatus = 'Published';
-
-    displayStatus = 'RECRUITING';
-
+  const statusMap = {
+    draft: 'Drafts',
+    scheduled: 'Scheduled',
+    published: 'Published',
   }
-
-
-
-  const startDate =
-
-    formatDate(newEvent.value.startDate);
-
-  const endDate =
-
-    formatDate(newEvent.value.endDate);
-
-
-
-  let eventDate = 'Date to be announced';
-
-
-
-  if (startDate && endDate) {
-
-    eventDate =
-
-      startDate === endDate
-
-        ? startDate
-
-        : `${startDate} - ${endDate}`;
-
+  return {
+    name: newEvent.value.title || 'Untitled Mission',
+    description: newEvent.value.description,
+    location: newEvent.value.venue,
+    category: newEvent.value.category,
+    status: statusMap[newEvent.value.publicationState] || 'Drafts',
+    quota: Number(newEvent.value.quota) || 0,
+    prerequisites: newEvent.value.prerequisites,
+    start_datetime: toIso(newEvent.value.startDate, '08:00:00'),
+    end_datetime: toIso(newEvent.value.endDate || newEvent.value.startDate, '17:00:00'),
   }
+}
 
-
-
-  const event = {
-
-    id: Date.now(),
-
-    title:
-
-      newEvent.value.title ||
-
-      'Untitled Mission',
-
-    category:
-
-      newEvent.value.category,
-
-    date: eventDate,
-
-    location:
-
-      newEvent.value.venue ||
-
-      'Location to be announced',
-
-    region:
-
-      newEvent.value.region,
-
-    description:
-
-      newEvent.value.description ||
-
-      'Mission briefing and deployment details will be provided.',
-
-    image:
-
-      '/images/programs/bloodletting.jpg',
-
-    status: eventStatus,
-
-    displayStatus,
-
-    time: '7:00 pm',
-
-    quota:
-
-      Number(newEvent.value.quota) || 0,
-
-    registered: 0,
-
-    quotaLabel: 'Registered',
-
-    tags:
-
-      [...newEvent.value.prerequisites],
-
-    lead:
-
-      newEvent.value.leadCoordinator ||
-
-      'Pahinungod Coordination Office'
-
-  };
-
-
-
-  events.value.push(event);
-
-  closeCreateModal();
-
-};
-
-
-
-
-const saveEditedEvent = () => {
-
-  if (!editingEvent.value) {
-
-    return;
-
+const saveEvent = async () => {
+  try {
+    const payload = buildPayload()
+    if (editingEvent.value) {
+      await eventService.patch(editingEvent.value.id, payload)
+    } else {
+      await eventService.create(payload)
+    }
+    await refreshEvents()
+    closeCreateModal()
+  } catch (err) {
+    const msg = err.response?.data
+      ? JSON.stringify(err.response.data, null, 2)
+      : err.message
+    alert('Error saving event:\n' + msg)
+    console.error(err)
   }
-
-
-
-  const index =
-
-    events.value.findIndex(
-
-      (event) =>
-
-        event.id === editingEvent.value.id
-
-    );
-
-
-
-  if (index === -1) {
-
-    return;
-
-  }
-
-
-
-  const existingEvent =
-
-    events.value[index];
-
-
-
-  let eventStatus = 'Drafts';
-
-  let displayStatus = 'DRAFT';
-
-
-
-  if (
-
-    newEvent.value.publicationState ===
-
-    'scheduled'
-
-  ) {
-
-    eventStatus = 'Scheduled';
-
-    displayStatus = 'SCHEDULED';
-
-  }
-
-
-
-  if (
-
-    newEvent.value.publicationState ===
-
-    'published'
-
-  ) {
-
-    eventStatus = 'Published';
-
-    displayStatus =
-
-      existingEvent.displayStatus ===
-
-      'COMPLETED'
-
-        ? 'COMPLETED'
-
-        : existingEvent.displayStatus ===
-
-          'ONGOING'
-
-            ? 'ONGOING'
-
-            : 'RECRUITING';
-
-  }
-
-
-
-  let eventDate =
-
-    existingEvent.date;
-
-
-
-  const startDate =
-
-    formatDate(newEvent.value.startDate);
-
-  const endDate =
-
-    formatDate(newEvent.value.endDate);
-
-
-
-  if (startDate && endDate) {
-
-    eventDate =
-
-      startDate === endDate
-
-        ? startDate
-
-        : `${startDate} - ${endDate}`;
-
-  }
-
-
-
-  events.value[index] = {
-
-    ...existingEvent,
-
-    title:
-
-      newEvent.value.title ||
-
-      existingEvent.title,
-
-    category:
-
-      newEvent.value.category,
-
-    description:
-
-      newEvent.value.description,
-
-    date: eventDate,
-
-    location:
-
-      newEvent.value.venue ||
-
-      existingEvent.location,
-
-    region:
-
-      newEvent.value.region,
-
-    status: eventStatus,
-
-    displayStatus,
-
-    quota:
-
-      Number(newEvent.value.quota) ||
-
-      existingEvent.quota,
-
-    tags:
-
-      [...newEvent.value.prerequisites],
-
-    lead:
-
-      newEvent.value.leadCoordinator ||
-
-      existingEvent.lead
-
-  };
-
-
-
-  closeCreateModal();
-
-};
-
-
-
-
-const saveEvent = () => {
-
-  if (editingEvent.value) {
-
-    saveEditedEvent();
-
-    return;
-
-  }
-
-
-
-  saveNewEvent(
-
-    newEvent.value.publicationState
-
-  );
-
-};
-
-
-
-
-const deleteModalOpen = ref(false);
-
-const selectedEvent = ref(null);
-
-const deleteConfirmed = ref(false);
-
-
+}
+
+// Keep these two so the existing footer buttons don't break.
+// "Save Draft" forces state=draft; "Save Changes" uses the chosen state.
+const saveNewEvent = async (publicationState) => {
+  newEvent.value.publicationState = publicationState
+  await saveEvent()
+}
+const saveEditedEvent = async () => { await saveEvent() }
+
+// ─── Delete modal ───
+const deleteModalOpen = ref(false)
+const selectedEvent = ref(null)
+const deleteConfirmed = ref(false)
 
 const openDeleteModal = (event) => {
-
-  selectedEvent.value = event;
-
-  deleteConfirmed.value = false;
-
-  deleteModalOpen.value = true;
-
-};
-
-
+  selectedEvent.value = event
+  deleteConfirmed.value = false
+  deleteModalOpen.value = true
+}
 
 const closeDeleteModal = () => {
+  deleteModalOpen.value = false
+  selectedEvent.value = null
+  deleteConfirmed.value = false
+}
 
-  deleteModalOpen.value = false;
-
-  selectedEvent.value = null;
-
-  deleteConfirmed.value = false;
-
-};
-
-
-
-const deleteEvent = () => {
-
-  if (
-
-    !deleteConfirmed.value ||
-
-    !selectedEvent.value
-
-  ) {
-
-    return;
-
+const deleteEvent = async () => {
+  if (!deleteConfirmed.value || !selectedEvent.value) return
+  try {
+    await eventService.remove(selectedEvent.value.id)
+    events.value = events.value.filter(e => e.id !== selectedEvent.value.id)
+    closeDeleteModal()
+  } catch (err) {
+    const msg = err.response?.data
+      ? JSON.stringify(err.response.data, null, 2)
+      : err.message
+    alert('Error deleting event:\n' + msg)
+    console.error(err)
   }
-
-
-
-  events.value =
-
-    events.value.filter(
-
-      (event) =>
-
-        event.id !==
-
-        selectedEvent.value.id
-
-    );
-
-
-
-  closeDeleteModal();
-
-};
-
+}
 </script>
 
 
@@ -1506,6 +403,11 @@ const deleteEvent = () => {
           </button>
 
         </div>
+
+      
+      <button class="events-add-button" @click="openCreateModal()">
+        <span>+</span> Add Event  <!-- MAKE THIS LOOK BETTER LATER -->
+      </button>
 
       </div>      <!-- category filters -->
 
@@ -1951,7 +853,7 @@ const deleteEvent = () => {
 
             @click="
 
-              openCreateModal
+              openCreateModal()
 
             "
 

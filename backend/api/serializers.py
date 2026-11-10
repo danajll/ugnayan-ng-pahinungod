@@ -30,7 +30,10 @@ class SubjectSerializer(serializers.ModelSerializer):
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ["id", "name", "description", "start_datetime", "end_datetime", "location", "created_at",
+        fields = [
+            "id", "name", "description", "start_datetime", "end_datetime",
+            "location", "category", "status", "quota", "prerequisites",
+            "cover_image", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 

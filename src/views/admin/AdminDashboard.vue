@@ -1,70 +1,59 @@
 <script setup>
+import { ref, onMounted, computed } from 'vue'
+import { CalendarDays, MapPin, Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { eventService } from '../../api/events'
+import { volunteerService } from '../../api/volunteers'
 
-import { ref } from 'vue';
+const eventFilter = ref('All Active')
+const volunteerSearch = ref('')
+const eventFilters = ['All Active', 'Field Deployment', 'Tutoring', 'Medical Mission', 'Others']
 
-import {
-  CalendarDays,
-  MapPin,
-  Search,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-vue-next';
+// Start empty
+const events = ref([])
+const volunteers = ref([])
+const loading = ref(true)
 
-const eventFilter = ref('All Active');
+onMounted(async () => {
+  try {
+    const [evRes, volRes] = await Promise.all([
+      eventService.list(),
+      volunteerService.list()
+    ])
 
-const volunteerSearch = ref('');
+    // Map events. Note: Backend doesn't have "status" or "capacity" yet, 
+    // so we mock some UI fields.
+    events.value = evRes.data.map(e => ({
+      id: e.id,
+      status: 'Open for Registration', 
+      title: e.name,
+      location: e.location,
+      date: new Date(e.start_datetime).toLocaleDateString(),
+      capacity: 50, // Mock
+      confirmed: 45, // Mock
+      coordinator: 'Admin', // Mock
+      role: 'Coordinator'
+    }))
 
-const eventFilters = [
-  'All Active',
-  'Field Deployment',
-  'Tutoring',
-  'Medical Mission',
-  'Others'
-];
+    // Map volunteers (reuse logic from AdminVolunteers)
+    volunteers.value = volRes.data.map(v => ({
+      name: `${v.first_name} ${v.last_name}`,
+      id: v.volunteer_identifier,
+      affiliation: v.affiliation_type,
+      timeIn: 'N/A',
+      timeOut: 'N/A'
+    }))
 
-const events = [
-  {
-    status: 'Open for Registration',
-    title: 'Bangsamoro Mangrove Reforestation',
-    location: 'Cotabato Coastal Cluster Sanctuary',
-    date: 'Dec 02-04, 2026',
-    capacity: 50,
-    confirmed: 45,
-    coordinator: 'Prof. Dana Jill Santiago',
-    role: 'CSM Dean'
-  },
-
-  {
-    status: 'Fully Booked',
-    title: 'Bangsamoro Mangrove Reforestation',
-    location: 'Cotabato Coastal Cluster Sanctuary',
-    date: 'Dec 02-04, 2026',
-    capacity: 50,
-    confirmed: 45,
-    coordinator: 'Prof. Dana Jill Santiago',
-    role: 'CSM Dean'
+  } catch (err) {
+    console.error(err)
+  } finally {
+    loading.value = false
   }
-];
+})
 
-const volunteers = [
-  {
-    name: 'Dana Jill Santiago',
-    id: '2024-13406',
-    affiliation: 'Student',
-    timeIn: '3:03 am',
-    timeOut: '3:03 pm'
-  },
-
-  {
-    name: 'Dana Jill Santiago',
-    id: '2024-13406',
-    affiliation: 'Faculty',
-    timeIn: '3:03 am',
-    timeOut: '3:03 pm'
-  }
-];
-
+const filteredEvents = computed(() => {
+  // Simple mock filter since backend doesn't have categories yet
+  return events.value
+})
 </script>
 
 <template>

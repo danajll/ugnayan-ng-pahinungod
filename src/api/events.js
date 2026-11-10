@@ -7,5 +7,4 @@ export const eventService = {
   update: (id, data)  => api.put(`/events/${id}/`, data),
   patch:  (id, data)  => api.patch(`/events/${id}/`, data),
   remove: (id)        => api.delete(`/events/${id}/`),
-  join:   (id)        => api.post(`/events/${id}/join/`),
 }

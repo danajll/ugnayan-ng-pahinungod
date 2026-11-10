@@ -1,65 +1,43 @@
 <script setup>
+import { computed, ref, onMounted } from 'vue'
+import { Search, ChevronLeft, ChevronRight, Eye } from 'lucide-vue-next'
+import { volunteerService } from '../../api/volunteers'
 
-import { computed, ref } from 'vue';
+const search = ref('')
+const volunteers = ref([]) // Start empty
+const loading = ref(true)
+const error = ref(null)
 
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Eye
-} from 'lucide-vue-next';
-
-
-const search = ref('');
-
-const volunteers = [
-
-  {
-    name: 'Dana Jill Santiago',
-    id: '2024-13406',
-    affiliation: 'Student',
-    degree: 'BS Computer Science',
-    timeIn: '3:03 am',
-    timeOut: '3:03 pm'
-  },
-
-  {
-    name: 'Dana Jill Santiago',
-    id: '2024-13406',
-    affiliation: 'Faculty',
-    degree: 'Computer Science',
-    timeIn: '3:03 am',
-    timeOut: '3:03 pm'
-  },
-
-  {
-    name: 'Maria Santos',
-    id: '2023-10521',
-    affiliation: 'Student',
-    degree: 'BS Biology',
-    timeIn: '7:15 am',
-    timeOut: '4:00 pm'
+// Fetch real data on mount
+onMounted(async () => {
+  try {
+    const { data } = await volunteerService.list()
+    // Map Django output to match your table's expected fields
+    volunteers.value = data.map(v => ({
+      name: `${v.first_name} ${v.last_name}`,
+      id: v.volunteer_identifier,
+      affiliation: v.affiliation_type, // 'student', 'faculty', etc.
+      degree: 'N/A', // Your backend doesn't send this in the main list yet
+      timeIn: 'N/A', // Backend doesn't track this yet
+      timeOut: 'N/A'
+    }))
+  } catch (err) {
+    error.value = err.response?.data?.detail || 'Failed to load volunteers.'
+  } finally {
+    loading.value = false
   }
-
-];
-
+})
 
 const filteredVolunteers = computed(() => {
-
-  const value = search.value.toLowerCase();
-
-  return volunteers.filter((volunteer) => {
-
+  const value = search.value.toLowerCase()
+  return volunteers.value.filter((volunteer) => {
     return (
       volunteer.name.toLowerCase().includes(value) ||
       volunteer.id.toLowerCase().includes(value) ||
       volunteer.degree.toLowerCase().includes(value)
-    );
-
-  });
-
-});
-
+    )
+  })
+})
 </script>
 
 
@@ -219,7 +197,7 @@ const filteredVolunteers = computed(() => {
         <div class="volunteers-footer">
 
           <span>
-            Showing {{ filteredVolunteers.length }} of 1,143 registered volunteer records
+            Showing {{ filteredVolunteers.length }} records
           </span>
 
 
