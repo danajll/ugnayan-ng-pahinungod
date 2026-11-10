@@ -58,7 +58,7 @@ const mapEvent = (e) => ({
     : 'DRAFT',
   time: null,
   quota: e.quota ?? 0,
-  registered: 0, // will come from EventParticipation later
+  registered: e.registered_count ?? 0,
   quotaLabel: 'Registered',
   tags: e.prerequisites || [],
   lead: 'Pahinungod Office' // not on the model yet

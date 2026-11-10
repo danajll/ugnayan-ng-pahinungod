@@ -22,17 +22,17 @@ onMounted(async () => {
 
     // Map events. Note: Backend doesn't have "status" or "capacity" yet, 
     // so we mock some UI fields.
-    events.value = evRes.data.map(e => ({
-      id: e.id,
-      status: 'Open for Registration', 
-      title: e.name,
-      location: e.location,
-      date: new Date(e.start_datetime).toLocaleDateString(),
-      capacity: 50, // Mock
-      confirmed: 45, // Mock
-      coordinator: 'Admin', // Mock
-      role: 'Coordinator'
-    }))
+  events.value = evRes.data.map(e => ({
+    id: e.id,
+    status: e.status === 'Published' ? 'Open for Registration' : e.status,
+    title: e.name,
+    location: e.location,
+    date: new Date(e.start_datetime).toLocaleDateString(),
+    capacity: e.quota || 0,
+    confirmed: e.registered_count || 0,
+    coordinator: 'Admin',
+    role: 'Coordinator'
+  }))
 
     // Map volunteers (reuse logic from AdminVolunteers)
     volunteers.value = volRes.data.map(v => ({
@@ -91,7 +91,7 @@ const filteredEvents = computed(() => {
 
           <article
             v-for="event in events"
-            :key="event.status"
+            :key="event.id"
             class="dashboard-event-card"
           >
 

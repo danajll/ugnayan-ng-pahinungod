@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
+from django.db.models import Count, Q
+
 
 from .models import (Event, Volunteer, VolunteerMeta, EventParticipation, ParticipationStatus, StudentProfile, StaffProfile, FacultyProfile, AlumniProfile, VolunteerContact, VolunteerAddress, VolunteerBackground, EmergencyContact, Program, Subject, VolunteerBackgroundStatus,
 )
@@ -28,15 +30,25 @@ class SubjectSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────────────────────
 
 class EventSerializer(serializers.ModelSerializer):
+    registered_count = serializers.SerializerMethodField()
+    capacity_left = serializers.SerializerMethodField()
+
     class Meta:
         model = Event
         fields = [
             "id", "name", "description", "start_datetime", "end_datetime",
             "location", "category", "status", "quota", "prerequisites",
-            "cover_image", "created_at",
+            "cover_image", "created_at", "registered_count", "capacity_left",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "registered_count", "capacity_left"]
 
+    def get_registered_count(self, obj):
+        return obj.participations.filter(
+            status__in=["registered", "attended"]
+        ).count()
+
+    def get_capacity_left(self, obj):
+        return max((obj.quota or 0) - self.get_registered_count(obj), 0)
 
 class VolunteerSerializer(serializers.ModelSerializer):
     service_hours = serializers.IntegerField(read_only=True)

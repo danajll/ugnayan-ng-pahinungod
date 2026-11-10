@@ -9,6 +9,7 @@ urlpatterns = [
     path("register/", views.register_view, name="register"),
     path("login/", views.login_view, name="login"),
     path("auth/google/", views.google_login, name="google-login"), 
+    path("me/", views.me_view, name="me"),
 
     # Events CRUD
     path("events/", views.event_list_create, name="event-list-create"),

@@ -230,6 +230,33 @@ def login_view(request):
         "is_superuser": user.is_superuser,
     })
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    user = request.user
+    volunteer = getattr(user, "volunteer", None)
+    return Response({
+        "user_id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+        "full_name": (
+            f"{user.first_name} {user.last_name}".strip()
+            or user.username
+        ),
+        "volunteer": (
+            {
+                "id": volunteer.id,
+                "identifier": volunteer.volunteer_identifier,
+                "full_name": volunteer.full_name,
+                "affiliation_type": volunteer.affiliation_type,
+            }
+            if volunteer else None
+        ),
+    })
 
 # ─────────────────────────────────────────────────────────────
 # OPTIONAL PROFILE INFORMATION
