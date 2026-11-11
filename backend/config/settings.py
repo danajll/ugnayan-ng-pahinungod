@@ -46,13 +46,46 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
+    # Django allauth
+    "django.contrib.sites",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+
+    # REST
+    "rest_framework",
     "rest_framework.authtoken",
-    # Third-party                                           
-    "rest_framework",                                       
-    "corsheaders",                                          
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "corsheaders",
+
     # Local                                                 
     "api",                                                  
 ]
+
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+            "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
+            "key": "",
+        },
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    }
+}
+
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",                
@@ -63,7 +96,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
+
+REST_AUTH = {
+    "USE_JWT": False,
+    "TOKEN_MODEL": "rest_framework.authtoken.models.Token",
+    "SESSION_LOGIN": False,
+}
 
 ROOT_URLCONF = "config.urls"
 

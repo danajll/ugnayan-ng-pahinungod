@@ -1,0 +1,253 @@
+.volunteers-header {
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+
+  margin-bottom: 28px;
+
+}
+
+
+.volunteers-header h1 {
+
+  margin: 0;
+
+  color: #5f5859;
+  font-size: 17px;
+
+}
+
+
+.volunteers-header p {
+
+  margin: 7px 0 0;
+
+  color: #777071;
+  font-size: 13px;
+
+}
+
+
+.volunteers-search {
+
+  width: 330px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 0 12px;
+
+  border-bottom: 1px solid #eee9e9;
+
+}
+
+
+.volunteers-search input {
+
+  width: 100%;
+
+  border: 0;
+  outline: 0;
+  background: transparent;
+
+}
+
+
+.volunteers-table-wrapper {
+
+  overflow: hidden;
+
+  border: 1px solid #eee9e9;
+  border-radius: 13px;
+
+}
+
+
+.volunteers-table {
+
+  width: 100%;
+
+  border-collapse: collapse;
+
+}
+
+
+.volunteers-table thead {
+
+  background: #f5f2f2;
+
+}
+
+
+.volunteers-table th {
+
+  height: 70px;
+
+  padding: 0 20px;
+
+  text-align: left;
+
+  color: #625b5c;
+  font-size: 13px;
+
+}
+
+
+.volunteers-table td {
+
+  height: 78px;
+
+  padding: 0 20px;
+
+  font-size: 14px;
+
+}
+
+
+.volunteer-directory-name {
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+}
+
+
+.volunteer-directory-name span {
+
+  color: #716a6b;
+
+}
+
+
+.directory-affiliation {
+
+  display: inline-flex;
+
+  padding: 6px 12px;
+
+  border-radius: 15px;
+
+  background: #ebe5e6;
+  color: #6a6364;
+
+}
+
+
+.directory-affiliation.faculty {
+
+  background: #f8d7d7;
+
+}
+
+
+.directory-view-button {
+
+  height: 35px;
+
+  padding: 0 12px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  border: 0;
+  border-radius: 7px;
+  background: #eeeaea;
+
+  cursor: pointer;
+
+}
+
+
+.volunteers-footer {
+
+  min-height: 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 20px;
+
+  background: #f5f2f2;
+  color: #716a6b;
+  font-size: 13px;
+
+}
+
+
+.directory-pagination {
+
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+}
+
+
+.directory-pagination button {
+
+  height: 32px;
+  min-width: 33px;
+
+  border: 0;
+  border-radius: 5px;
+  background: white;
+
+  cursor: pointer;
+
+}
+
+
+.directory-pagination button.active {
+
+  background: transparent;
+  color: var(--admin-maroon-dark);
+  font-weight: 700;
+
+}
+
+
+.directory-pagination button:disabled {
+
+  color: #aaa5a5;
+
+}
+
+
+@media (max-width: 900px) {
+
+  .volunteers-header {
+
+    align-items: stretch;
+    flex-direction: column;
+
+  }
+
+
+  .volunteers-search {
+
+    width: 100%;
+
+  }
+
+
+  .volunteers-table-wrapper {
+
+    overflow-x: auto;
+
+  }
+
+
+  .volunteers-table {
+
+    min-width: 900px;
+
+  }
+
+}

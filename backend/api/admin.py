@@ -4,14 +4,38 @@ from .models import (
     StudentProfile, FacultyProfile, StaffProfile, AlumniProfile,
     VolunteerContact, VolunteerAddress, VolunteerBackground,
     EmergencyContact, VolunteerMeta,
+    Program, Subject, VolunteerBackgroundStatus,       
 )
 
 # Register your models here.
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    list_display = ("name", "volunteer_identifier", "affiliation_type", "status")
+    list_display = ("full_name", "volunteer_identifier", "affiliation_type", "status")
     list_filter = ("affiliation_type", "status")
-    search_fields = ("name", "volunteer_identifier")
+    search_fields = ("first_name", "last_name", "volunteer_identifier")
+
+    @admin.display(description="Name")
+    def full_name(self, obj):
+        return obj.full_name
+    
+@admin.register(Program)
+class ProgramAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("code", "name")
+
+
+@admin.register(Subject)
+class SubjectAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("code", "name")
+
+
+@admin.register(VolunteerBackgroundStatus)
+class VolunteerBackgroundStatusAdmin(admin.ModelAdmin):
+    list_display = ("volunteer", "application_status", "wants_operations_group")
+    list_filter = ("application_status", "wants_operations_group")
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):

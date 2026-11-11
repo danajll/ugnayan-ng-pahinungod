@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+
+:root {
+
+  --maroon: #720914;
+  --maroon-dark: #4d0008;
+  --maroon-soft: #8a1722;
+  --cream: #f6f4f2;
+  --white: #ffffff;
+  --text: #1c1516;
+  --muted: #756c6d;
+  --border: #e6e0de;
+
+}
+
+
+* {
+
+  box-sizing: border-box;
+
+}
+
+
+html {
+
+  scroll-behavior: smooth;
+
+}
+
+
+body {
+
+  margin: 0;
+
+  font-family:
+    Inter,
+    Arial,
+    sans-serif;
+
+}
+
+
+button,
+input {
+
+  font: inherit;
+
+}

@@ -16,4 +16,8 @@ frontend/dist/
 # IDE
 .vscode/
 .idea/
-.DS_Store
+.DS_Storenode_modules/
+dist/
+.env
+.env.*
+!.env.example
