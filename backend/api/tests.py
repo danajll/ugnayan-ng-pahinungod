@@ -326,6 +326,66 @@ class BadgeApiTests(ApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+    def test_admin_can_modify_and_delete_badges(self):
+        self.client.force_authenticate(self.admin)
+        badge_url = reverse("badge-detail", args=[self.badge.pk])
+
+        response = self.client.patch(
+            badge_url,
+            {
+                "name": "Updated Service Star",
+                "description": "Updated recognition.",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.badge.refresh_from_db()
+        self.assertEqual(self.badge.name, "Updated Service Star")
+        self.assertEqual(self.badge.description, "Updated recognition.")
+
+        response = self.client.put(
+            badge_url,
+            {
+                "name": "Complete Service Star",
+                "description": "Complete replacement.",
+                "icon_url": "https://example.com/complete-star.png",
+                "criteria_type": BadgeCriteriaType.MANUAL,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.badge.refresh_from_db()
+        self.assertEqual(self.badge.name, "Complete Service Star")
+        self.assertEqual(self.badge.criteria_type, BadgeCriteriaType.MANUAL)
+
+        response = self.client.delete(badge_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Badge.objects.filter(pk=self.badge.pk).exists())
+
+    def test_non_staff_users_cannot_modify_or_delete_badges(self):
+        self.client.force_authenticate(self.volunteer_user)
+        badge_url = reverse("badge-detail", args=[self.badge.pk])
+
+        for method, data in (
+            ("patch", {"name": "Unauthorized update"}),
+            ("put", {
+                "name": "Unauthorized replacement",
+                "description": "",
+                "icon_url": "",
+                "criteria_type": BadgeCriteriaType.MANUAL,
+            }),
+        ):
+            response = getattr(self.client, method)(
+                badge_url,
+                data,
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        response = self.client.delete(badge_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Badge.objects.filter(pk=self.badge.pk).exists())
+
     def test_award_rejects_unmet_service_hours_criteria(self):
         self.client.force_authenticate(self.admin)
         response = self.client.post(
