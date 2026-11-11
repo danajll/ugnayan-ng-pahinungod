@@ -2,8 +2,25 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
-
-from .models import (Event, Volunteer, VolunteerMeta, EventParticipation, ParticipationStatus, StudentProfile, StaffProfile, FacultyProfile, AlumniProfile, VolunteerContact, VolunteerAddress, VolunteerBackground, EmergencyContact, Program, Subject, VolunteerBackgroundStatus,
+from .models import (
+    AlumniProfile,
+    Badge,
+    EmergencyContact,
+    Event,
+    EventParticipation,
+    FacultyProfile,
+    ParticipationStatus,
+    Program,
+    StaffProfile,
+    StudentProfile,
+    Subject,
+    Volunteer,
+    VolunteerAddress,
+    VolunteerBackground,
+    VolunteerBackgroundStatus,
+    VolunteerContact,
+    VolunteerBadge,
+    VolunteerMeta,
 )
 
 
@@ -49,6 +66,29 @@ class VolunteerSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "service_hours", "full_name", "age", "is_profile_complete", "onboarding_completed_at", "created_at", "updated_at",
         ]
+
+
+class BadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Badge
+        fields = ["id", "name", "description", "icon_url", "criteria_type"]
+        read_only_fields = ["id"]
+
+
+class VolunteerBadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VolunteerBadge
+        fields = ["id", "volunteer", "badge", "event", "date_awarded"]
+        read_only_fields = ["id", "date_awarded"]
+
+
+class VolunteerBadgeReadSerializer(serializers.ModelSerializer):
+    badge = BadgeSerializer(read_only=True)
+
+    class Meta:
+        model = VolunteerBadge
+        fields = ["id", "volunteer", "badge", "event", "date_awarded"]
+        read_only_fields = fields
 
 
 class EventParticipationSerializer(serializers.ModelSerializer):

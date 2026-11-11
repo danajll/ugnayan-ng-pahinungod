@@ -5,21 +5,134 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 
-from .models import (Event, Volunteer, EventParticipation, ParticipationStatus, VolunteerContact, VolunteerAddress, VolunteerBackground, EmergencyContact,
-    VolunteerMeta, StudentProfile, FacultyProfile, StaffProfile, AlumniProfile, Program, Subject, VolunteerBackgroundStatus,
+from .models import (
+    AlumniProfile,
+    Badge,
+    BadgeCriteriaType,
+    EmergencyContact,
+    Event,
+    EventParticipation,
+    FacultyProfile,
+    ParticipationStatus,
+    Program,
+    StaffProfile,
+    StudentProfile,
+    Subject,
+    Volunteer,
+    VolunteerAddress,
+    VolunteerBackground,
+    VolunteerBackgroundStatus,
+    VolunteerBadge,
+    VolunteerContact,
+    VolunteerMeta,
 )
-from .serializers import (EventSerializer, VolunteerSerializer, EventParticipationSerializer, RegisterSerializer, VolunteerContactSerializer, VolunteerAddressSerializer,
-    VolunteerBackgroundSerializer, EmergencyContactSerializer, ProgramSerializer, SubjectSerializer, OnboardingSerializer,
+from .serializers import (
+    BadgeSerializer,
+    EmergencyContactSerializer,
+    EventParticipationSerializer,
+    EventSerializer,
+    OnboardingSerializer,
+    ProgramSerializer,
+    RegisterSerializer,
+    SubjectSerializer,
+    VolunteerAddressSerializer,
+    VolunteerBackgroundSerializer,
+    VolunteerBadgeReadSerializer,
+    VolunteerContactSerializer,
+    VolunteerProfileSerializer,
+    VolunteerSerializer,
 )
 from .permissions import IsAdminOrReadOnly
+
+
+class BadgeViewSet(viewsets.ModelViewSet):
+    """
+    GET requests are public; badge management and awarding require staff access.
+    """
+
+    queryset = Badge.objects.all().order_by("name")
+    serializer_class = BadgeSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    @action(detail=True, methods=["post"], url_path="award")
+    def award(self, request, pk=None):
+        badge = self.get_object()
+        volunteer_id = request.data.get("volunteer")
+        event_id = request.data.get("event")
+
+        if not volunteer_id:
+            return Response(
+                {"volunteer": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        volunteer = get_object_or_404(Volunteer, pk=volunteer_id)
+        event = None
+        if event_id is not None:
+            event = get_object_or_404(Event, pk=event_id)
+
+        if badge.criteria_type == BadgeCriteriaType.HOURS:
+            criteria_met = volunteer.service_hours > 0
+            criteria_message = "at least 1 service hour is required"
+        elif badge.criteria_type == BadgeCriteriaType.EVENT_COUNT:
+            criteria_met = volunteer.event_participations.filter(
+                status=ParticipationStatus.ATTENDED,
+            ).exists()
+            criteria_message = "at least 1 attended event is required"
+        else:
+            criteria_met = True
+            criteria_message = ""
+
+        if not criteria_met:
+            return Response(
+                {
+                    "detail": (
+                        "Badge criteria not met: "
+                        f"{criteria_message}."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if VolunteerBadge.objects.filter(
+            volunteer=volunteer,
+            badge=badge,
+        ).exists():
+            return Response(
+                {"detail": "This badge has already been awarded to the volunteer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        volunteer_badge = VolunteerBadge.objects.create(
+            volunteer=volunteer,
+            badge=badge,
+            event=event,
+        )
+        return Response(
+            VolunteerBadgeReadSerializer(volunteer_badge).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VolunteerBadgeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Explicitly assembled awarded-badge data for profile and frontend retrieval.
+    """
+
+    queryset = VolunteerBadge.objects.select_related(
+        "badge",
+        "event",
+        "volunteer",
+    ).order_by("-date_awarded")
+    serializer_class = VolunteerBadgeReadSerializer
 
 
 # ─────────────────────────────────────────────────────────────
@@ -82,7 +195,7 @@ def volunteer_list(request):
     return Response(serializer.data)
 
 
-@api_view(["GET", "PATCH"])
+@api_view(["GET", "PUT", "PATCH", "DELETE"])
 @permission_classes([IsAdminOrReadOnly])
 def volunteer_detail(request, pk):
     volunteer = get_object_or_404(Volunteer, pk=pk)
@@ -424,9 +537,9 @@ def google_login(request):
             google_requests.Request(),
             django_settings.SOCIALACCOUNT_PROVIDERS["google"]["APP"]["client_id"],
         )
-    except ValueError as e:
+    except ValueError:
         return Response(
-            {"detail": f"Invalid token: {e}"},
+            {"detail": "Invalid token."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
