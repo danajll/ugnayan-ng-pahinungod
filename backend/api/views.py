@@ -537,9 +537,9 @@ def google_login(request):
             google_requests.Request(),
             django_settings.SOCIALACCOUNT_PROVIDERS["google"]["APP"]["client_id"],
         )
-    except ValueError as e:
+    except ValueError:
         return Response(
-            {"detail": f"Invalid token: {e}"},
+            {"detail": "Invalid token."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
