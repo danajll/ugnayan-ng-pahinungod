@@ -26,6 +26,18 @@ class BadgeCriteriaType(models.TextChoices):
     EVENT_COUNT = "event_count", "Event count-based"
     MANUAL = "manual", "Manually awarded"
 
+class EventCategory(models.TextChoices):
+    HEALTH = "HEALTH", "Health"
+    EDUCATION = "EDUCATION & LITERACY", "Education & Literacy"
+    ENVIRONMENT = "ENVIRONMENT & ECOLOGY", "Environment & Ecology"
+    NSTP = "NSTP / CWTS", "NSTP / CWTS"
+    IP = "INDIGENOUS PEOPLES (IP)", "Indigenous Peoples (IP)"
+
+
+class EventStatus(models.TextChoices):
+    DRAFT = "Drafts", "Draft"
+    SCHEDULED = "Scheduled", "Scheduled"
+    PUBLISHED = "Published", "Published"
 
 class ParticipationStatus(models.TextChoices):
     REGISTERED = "registered", "Registered"
@@ -189,6 +201,21 @@ class Event(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     location = models.CharField(max_length=300, blank=True)
+    
+    category = models.CharField(
+        max_length=50,
+        choices=EventCategory.choices,
+        default=EventCategory.HEALTH,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=EventStatus.choices,
+        default=EventStatus.DRAFT,
+    )
+    quota = models.PositiveIntegerField(default=0)
+    prerequisites = models.JSONField(default=list, blank=True)
+    cover_image = models.ImageField(upload_to="event_covers/", null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

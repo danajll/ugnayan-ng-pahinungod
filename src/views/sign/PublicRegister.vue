@@ -1,67 +1,233 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { meService } from '../../api/me'
+import { volunteerService } from '../../api/volunteers'
 
 const router = useRouter()
 const currentStep = ref(1)
+const submitting = ref(false)
+const submitError = ref(null)
 
+// Form Data
 const formData = reactive({
-  // Step 1: Personal Information
-  lastName: '',
-  firstName: '',
-  middleName: '',
-  nickName: '',
-  age: '',
-  sex: '',
-  birthDate: '',
-  ipAffiliation: '',
-  mobile: '',
-  facebookLink: '',
-  hobbies: '',
-  affiliatedOrgs: '',
-  permanentAddress: '',
-  upAddress: '',
+  // Step 1
+  lastName: '', firstName: '', middleName: '', nickName: '',
+  age: '', sex: '', birthDate: '', ipAffiliation: '',
+  mobile: '', facebookLink: '', hobbies: '', affiliatedOrgs: '',
+  permanentAddress: '', upAddress: '',
 
-  // Step 2: Affiliation & Demographics
-  affiliation: '',
-  shsFinished: '',
-  bachelorsDegree: '',
-  firstInFamilyCollege: '',
-  firstInFamilyGradStudies: '',
-  firstInFamilyUP: '',
+  // Step 2
+  affiliation: '', shsFinished: '', bachelorsDegree: '', studentNumber: '', courseProgram: '',
+  firstInFamilyCollege: '', firstInFamilyGradStudies: '', firstInFamilyUP: '',
 
-  // Step 3: Emergency Contact & Programs
-  emergencyName: '',
-  emergencyRelation: '',
-  emergencyMobile: '',
-  emergencyAddress: '',
-  volunteerPrograms: [],
-  affirmativeSubjects: [],
+  // Step 3
+  emergencyName: '', emergencyRelation: '', emergencyMobile: '', emergencyAddress: '',
+  volunteerPrograms: [], affirmativeSubjects: [],
 
-  // Step 4: Background & Consent
-  applicationStatus: '',
-  tagapagUgnay: '',
-  otherVolOrg: '',
-  otherVolOrgName: '',
-  whereHeard: '',
-  agreedConsent: false
+  // Step 4
+  applicationStatus: '', tagapagUgnay: '', otherVolOrg: '',
+  otherVolOrgName: '', whereHeard: '', agreedConsent: false,
 })
 
+// ─────────────────────────────────────────────────────────────
+// Prefill from /api/me/ + /api/volunteers/<id>/
+// ─────────────────────────────────────────────────────────────
+const prefilling = ref(true)
+
+onMounted(async () => {
+  try {
+    const { data: me } = await meService.get()
+
+    if (me.volunteer?.id) {
+      // Pull the full volunteer record
+      const { data: full } = await volunteerService.get(me.volunteer.id)
+
+      formData.firstName       = full.first_name || ''
+      formData.middleName      = full.middle_name || ''
+      formData.lastName        = full.last_name || ''
+      formData.birthDate       = full.birthdate || ''
+      formData.sex             = full.sex === 'M' ? 'Male' : full.sex === 'F' ? 'Female' : ''
+      formData.mobile          = full.mobile_number || ''
+      formData.facebookLink    = full.facebook_link || ''
+      formData.permanentAddress = full.permanent_address || ''
+      formData.upAddress       = full.up_address || ''
+      formData.hobbies         = full.hobbies || ''
+      formData.affiliatedOrgs  = full.affiliated_organizations || ''
+      formData.ipAffiliation   = full.indigenous_affiliation || ''
+      formData.nickName        = full.nickname || ''
+    } else {
+      // Fall back to User's first/last name from Google
+      formData.firstName = me.first_name || ''
+      formData.lastName  = me.last_name || ''
+    }
+  } catch (err) {
+    // 401 → guard should have caught it, but be defensive
+    if (err.response?.status === 401) {
+      localStorage.removeItem('auth_token')
+      router.push('/login')
+    }
+    console.warn('Prefill failed:', err)
+  } finally {
+    prefilling.value = false
+  }
+})
+
+// ─────────────────────────────────────────────────────────────
+// Navigation
+// ─────────────────────────────────────────────────────────────
 const prevStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
-const handleNextOrSubmit = () => {
+const handleNextOrSubmit = async () => {
   if (currentStep.value < 4) {
     currentStep.value++
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  } else {
-    console.log('Final Form Data Submitted:', formData)
-    alert('Registration successfully submitted!')
-    router.push('/login')
+    return
   }
+
+  submitError.value = null
+  submitting.value = true
+
+  try {
+    const payload = buildOnboardingPayload()
+    await volunteerService.onboard(payload)
+
+    // Re-fetch /api/me/ to confirm is_profile_complete is now true
+    // (optional but useful for debugging)
+    // const { data: me } = await meService.get()
+
+    router.push('/user')
+  } catch (err) {
+    const detail = err.response?.data
+    if (detail && typeof detail === 'object') {
+      submitError.value = prettyErrors(detail)
+    } else if (detail?.detail) {
+      submitError.value = detail.detail
+    } else {
+      submitError.value = 'Submission failed. Please check your data.'
+    }
+    console.error('Onboarding error:', detail || err)
+    // Scroll to error
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } finally {
+    submitting.value = false
+  }
+}
+
+// Turn DRF's nested error object into readable text
+const prettyErrors = (obj, prefix = '') => {
+  let out = ''
+  for (const key in obj) {
+    const val = obj[key]
+    const path = prefix ? `${prefix}.${key}` : key
+    if (Array.isArray(val)) {
+      out += `${path}: ${val.join(', ')}\n`
+    } else if (typeof val === 'object' && val !== null) {
+      out += prettyErrors(val, path)
+    } else {
+      out += `${path}: ${val}\n`
+    }
+  }
+  return out.trim()
+}
+
+// ─────────────────────────────────────────────────────────────
+// Build payload matching OnboardingSerializer
+// ─────────────────────────────────────────────────────────────
+const buildOnboardingPayload = () => ({
+  personal_info: {
+    first_name: formData.firstName,
+    middle_name: formData.middleName || '',
+    last_name: formData.lastName,
+    nickname: formData.nickName,
+    sex: formData.sex === 'Female' ? 'F' : 'M',
+    birthdate: formData.birthDate,
+    indigenous_affiliation: formData.ipAffiliation || '',
+    mobile_number: formData.mobile,
+    facebook_link: formData.facebookLink,
+    hobbies: formData.hobbies,
+    affiliated_organizations: formData.affiliatedOrgs,
+    permanent_address: formData.permanentAddress,
+    up_address: formData.upAddress || '',
+    senior_high_school: formData.shsFinished || '',
+  },
+  affiliation_type: mapAffiliation(formData.affiliation),
+  student_info: {
+    student_number: formData.studentNumber || '',
+    course: formData.courseProgram || '',
+    bachelor_degree: formData.bachelorsDegree || '',
+    first_to_college: formData.firstInFamilyCollege === 'YES' ? 'yes' : 'no',
+    first_to_graduate:
+      formData.firstInFamilyGradStudies === 'N/A'
+        ? 'n_a'
+        : formData.firstInFamilyGradStudies === 'YES' ? 'yes' : 'no',
+    first_in_up: formData.firstInFamilyUP === 'YES' ? 'yes' : 'no',
+  },
+  emergency_contact: {
+    contact_name: formData.emergencyName,
+    relationship: formData.emergencyRelation,
+    contact_mobile_number: formData.emergencyMobile,
+    complete_address: formData.emergencyAddress || '',
+  },
+  programs: formData.volunteerPrograms
+    .map(mapProgramCode)
+    .filter(Boolean),
+  affirmative_action_subjects: formData.affirmativeSubjects
+    .map(mapSubjectCode)
+    .filter(Boolean),
+  background: {
+    application_status: mapApplicationStatus(formData.applicationStatus),
+    operations_group: formData.tagapagUgnay === 'YES' ? 'yes' : 'no',
+    other_orgs: formData.otherVolOrg === 'YES' ? 'yes' : 'no',
+    other_orgs_name: formData.otherVolOrgName || '',
+    referral_source: formData.whereHeard || '',
+  },
+})
+
+// ─────────────────────────────────────────────────────────────
+// Lookup maps (verified against your DB)
+// ─────────────────────────────────────────────────────────────
+const PROGRAM_MAP = {
+  'AFFIRMATIVE ACTION PROGRAM':                'AFFIRMATIVE_ACTION_PROGRAM',
+  'TEACHER DEVELOPMENT PROGRAM':               'TEACHER_DEVELOPMENT_PROGRAM',
+  'DISASTER RISK REDUCTION RELATED PROGRAM':   'DISASTER_RISK_REDUCTION',
+  'UGNAYAN NG PAHINUNGOD ONLINE PROGRAM':      'UGNAYAN_NG_PAHINUNGOD_ONLINE',
+  'TUTORIAL SERVICES PROGRAM':                 'TUTORIAL_SERVICE_PROGRAM',
+  'ENVIRONMENTAL AWARENESS PROGRAM':           'ENVIRONMENTAL_AWARENESS_PROGRAM',
+  'PROGRAMS UNDER THE UP BARMM-MBHTE MOU':     'UP_BARMM_MBHTE_MOU',
+}
+const mapProgramCode = (label) => PROGRAM_MAP[label] || null
+
+const SUBJECT_MAP = {
+  'READING COMPREHENSION FILIPINO': 'READING_COMP_FILIPINO',
+  'READING COMPREHENSION ENGLISH':  'READING_COMP_ENGLISH',
+  'LANGUAGE PROFICIENCY FILIPINO':  'LANG_PROF_FILIPINO',
+  'LANGUAGE PROFICIENCY ENGLISH':   'LANG_PROF_ENGLISH',
+  'MATHEMATICS':                    'MATH',
+  'SCIENCE':                        null, // not in your DB yet — silently dropped
+  'NONE':                           null, // NONE isn't a real Subject row
+}
+const mapSubjectCode = (label) => SUBJECT_MAP[label] ?? null
+
+const mapAffiliation = (label) => {
+  const v = (label || '').toLowerCase()
+  if (v === 'student') return 'student'
+  if (v === 'faculty') return 'faculty'
+  if (v === 'alumni') return 'alumni'
+  if (v === 'retiree') return 'alumni' // backend has no "retiree"
+  if (v.includes('up reps') || v.includes('staff')) return 'staff'
+  return 'student'
+}
+
+const mapApplicationStatus = (label) => {
+  if (label === 'Already signed up no engagements') return 'previous_no_engagement'
+  if (label === 'Already signed up with engagements') return 'previous_with_engagement'
+  return 'first_time'
 }
 </script>
 
@@ -99,6 +265,9 @@ const handleNextOrSubmit = () => {
     <!-- Right Form Section -->
     <div class="form-container">
       <div class="form-wrapper">
+        <p v-if="prefilling" style="text-align:center; padding:20px; color:#666;">
+          Loading your profile…
+        </p>
         <!-- Brand Header & Progress Tracker -->
         <div class="form-header">
           <h1 class="brand-title">Ugnayan ng Pahinungód Mindanao</h1>
@@ -114,7 +283,13 @@ const handleNextOrSubmit = () => {
 
         <!-- Multi-Step Form -->
         <form @submit.prevent="handleNextOrSubmit" class="step-form">
-          
+          <div
+            v-if="submitError"
+            style="background:#fee2e2; color:#991b1b; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:0.85rem;"
+          >
+            <strong>Could not submit:</strong>
+            <pre style="margin:8px 0 0; white-space:pre-wrap; font-family:inherit;">{{ submitError }}</pre>
+          </div>
           <!-- ==================== STEP 1: Personal Information ==================== -->
           <div v-if="currentStep === 1" class="form-step">
             <div class="section-title">
@@ -260,10 +435,45 @@ const handleNextOrSubmit = () => {
               <input v-model="formData.shsFinished" type="text" placeholder="Name of Senior High School, Municipality/City, Province" />
             </div>
 
+            <!-- Visible only for students -->
+            <div
+              v-if="formData.affiliation === 'STUDENT'"
+              class="form-row two-col"
+            >
+              <div class="form-group">
+                <label>STUDENT NUMBER <span class="required">*</span></label>
+                <input
+                  v-model="formData.studentNumber"
+                  type="text"
+                  placeholder="e.g. 2024-13406"
+                  required
+                />
+                <span class="field-help">Your UP Mindanao student number (format YYYY-NNNNN).</span>
+              </div>
+              <div class="form-group">
+                <label>CURRENT DEGREE PROGRAM <span class="required">*</span></label>
+                <input
+                  v-model="formData.courseProgram"
+                  type="text"
+                  placeholder="e.g. BS Computer Science"
+                  required
+                />
+                <span class="field-help">The degree you are currently enrolled in.</span>
+              </div>
+            </div>
+
+            <!-- Completed bachelor's degree — for grad students / alumni / faculty -->
             <div class="form-group">
-              <label>WHERE DID YOU OBTAIN YOUR BACHELOR'S DEGREE AND WHAT IS YOUR DEGREE PROGRAM?</label>
-              <span class="field-help">(For graduate students)</span>
-              <input v-model="formData.bachelorsDegree" type="text" placeholder="e.g. BS Biology, UP Mindanao (or other university)" />
+              <label>COMPLETED BACHELOR'S DEGREE (IF ANY)</label>
+              <input
+                v-model="formData.bachelorsDegree"
+                type="text"
+                placeholder="e.g. BS Biology, UP Mindanao (leave blank if still pursuing)"
+              />
+              <span class="field-help">
+                For graduate students, alumni, and faculty — your completed undergraduate degree.
+                Current undergrads can leave this blank.
+              </span>
             </div>
 
             <div class="form-group">
@@ -471,11 +681,11 @@ const handleNextOrSubmit = () => {
               BACK
             </button>
             
-            <button type="submit" class="btn-action btn-primary">
-              <span v-if="currentStep < 4">NEXT STEP &rarr;</span>
+            <button type="submit" class="btn-action btn-primary" :disabled="submitting">
+              <span v-if="currentStep < 4">NEXT STEP →</span>
               <span v-else class="btn-content">
-                SUBMIT / UPDATE REGISTRATION
-                <img src="/images/assets/check-icon.svg" alt="Check" class="btn-icon" />
+                {{ submitting ? 'SUBMITTING…' : 'SUBMIT / UPDATE REGISTRATION' }}
+                <img v-if="!submitting" src="/images/assets/check-icon.svg" alt="Check" class="btn-icon" />
               </span>
             </button>
           </div>

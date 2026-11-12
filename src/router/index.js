@@ -27,7 +27,8 @@ const routes = [
   {
     path: '/register',
     name: 'register',
-    component: PublicRegister
+    component: PublicRegister,
+    meta: { requiresAuth: true }
   },
   {
     path: '/login',
@@ -83,11 +84,72 @@ const routes = [
 ];
 
 const router = createRouter({
-
   history: createWebHistory(import.meta.env.BASE_URL),
+  routes,
+})
 
-  routes
+// ─────────────────────────────────────────────────────────────
+// Auth guard
+// ─────────────────────────────────────────────────────────────
 
-});
+let cachedMe = null
 
-export default router;
+async function fetchMe() {
+  if (cachedMe) return cachedMe
+  try {
+    const { meService } = await import('../api/me')
+    const { data } = await meService.get()
+    cachedMe = data
+    return data
+  } catch (err) {
+    cachedMe = null
+    return null
+  }
+}
+
+export function invalidateMeCache() {
+  cachedMe = null
+}
+
+router.beforeEach(async (to) => {
+  const token = localStorage.getItem('auth_token')
+
+  // 1. /register needs a token (must sign in via Google first)
+  if (to.meta.requiresAuth && !token) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+
+  // 2. /admin/* and /user/* need a token
+  const needsAuth = to.path.startsWith('/admin') || to.path.startsWith('/user')
+  if (needsAuth && !token) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+
+  // 3. /admin/* needs staff/superuser
+  if (to.path.startsWith('/admin') && token) {
+    const me = await fetchMe()
+
+    if (!me) {
+      // Token invalid → clear and send to login
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('user_id')
+      localStorage.removeItem('volunteer_id')
+      cachedMe = null
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+
+    if (!me.is_staff && !me.is_superuser) {
+      return { path: '/user' }
+    }
+  }
+
+  return true
+})
+
+export default router
+
+router.beforeEach((to) => {
+  if (to.meta.requiresAuth && !localStorage.getItem('auth_token')) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+})

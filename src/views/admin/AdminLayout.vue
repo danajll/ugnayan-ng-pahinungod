@@ -1,65 +1,61 @@
 <script setup>
-
-import { ref } from 'vue';
-
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import {
-  LayoutDashboard,
-  CalendarDays,
-  Users,
-  BadgeCheck,
-  ShieldCheck,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ArrowLeft,
-  ExternalLink,
-  ChevronDown
-} from 'lucide-vue-next';
+  LayoutDashboard, CalendarDays, Users, BadgeCheck, ShieldCheck,
+  PanelLeftClose, PanelLeftOpen, ArrowLeft, ExternalLink, ChevronDown
+} from 'lucide-vue-next'
+import { meService } from '../../api/me'
+import { invalidateMeCache } from '../../router/index'
 
-
-const sidebarCollapsed = ref(false);
-
-const accountOpen = ref(false);
-
+const router = useRouter()
+const sidebarCollapsed = ref(false)
+const accountOpen = ref(false)
 
 const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 
-  sidebarCollapsed.value = !sidebarCollapsed.value;
+// ─── Current user ───
+const me = ref(null)
+const meLoading = ref(true)
 
-};
+onMounted(async () => {
+  try {
+    const { data } = await meService.get()
+    me.value = data
+  } catch (err) {
+    console.warn('Could not load current user:', err.response?.status)
+    localStorage.removeItem('auth_token')
+    router.push('/login')
+  } finally {
+    meLoading.value = false
+  }
+})
 
+const displayName = computed(() => me.value?.full_name || 'Loading…')
+const displayRole = computed(() => {
+  if (!me.value) return ''
+  if (me.value.is_superuser) return 'Super Admin'
+  if (me.value.is_staff) return 'System Admin'
+  return 'Volunteer'
+})
+
+const handleSignOut = () => {
+  localStorage.removeItem('auth_token')
+  localStorage.removeItem('user_id')
+  localStorage.removeItem('volunteer_id')
+  invalidateMeCache()
+  router.push('/login')
+}
 
 const navigation = [
-  {
-    name: 'Dashboard',
-    path: '/admin',
-    icon: LayoutDashboard
-  },
-
-  {
-    name: 'Events',
-    path: '/admin/events',
-    icon: CalendarDays
-  },
-
-  {
-    name: 'Volunteers Directory',
-    path: '/admin/volunteers',
-    icon: Users
-  },
-
-  {
-    name: 'Volunteer Progress & Badges',
-    path: '/admin/progress',
-    icon: BadgeCheck
-  },
-
-  {
-    name: 'Privacy & Settings',
-    path: '/admin/settings',
-    icon: ShieldCheck
-  }
-];
-
+  { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+  { name: 'Events', path: '/admin/events', icon: CalendarDays },
+  { name: 'Volunteers Directory', path: '/admin/volunteers', icon: Users },
+  { name: 'Volunteer Progress & Badges', path: '/admin/progress', icon: BadgeCheck },
+  { name: 'Privacy & Settings', path: '/admin/settings', icon: ShieldCheck },
+]
 </script>
 
 
@@ -96,11 +92,11 @@ const navigation = [
           <div class="admin-account-info">
 
             <strong>
-              Ugnayan ng Pahinungod
+              {{ displayName }}
             </strong>
 
             <span>
-              System Admin
+              {{ displayRole }}
             </span>
 
           </div>
@@ -122,11 +118,11 @@ const navigation = [
           class="admin-account-menu"
         >
 
-          <button>
+          <button @click="router.push('/admin/settings'); accountOpen = false">
             Account Settings
           </button>
 
-          <button>
+          <button @click="handleSignOut">
             Sign Out
           </button>
 

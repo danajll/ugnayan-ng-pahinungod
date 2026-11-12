@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
+from django.db.models import Count, Q
+
 from .models import (
     AlumniProfile,
     Badge,
@@ -45,27 +47,66 @@ class SubjectSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────────────────────
 
 class EventSerializer(serializers.ModelSerializer):
+    registered_count = serializers.SerializerMethodField()
+    capacity_left = serializers.SerializerMethodField()
+
     class Meta:
         model = Event
-        fields = ["id", "name", "description", "start_datetime", "end_datetime", "location", "created_at",
+        fields = [
+            "id", "name", "description", "start_datetime", "end_datetime",
+            "location", "category", "status", "quota", "prerequisites",
+            "cover_image", "created_at", "registered_count", "capacity_left",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "registered_count", "capacity_left"]
 
+    def get_registered_count(self, obj):
+        return obj.participations.filter(
+            status__in=["registered", "attended"]
+        ).count()
+
+    def get_capacity_left(self, obj):
+        return max((obj.quota or 0) - self.get_registered_count(obj), 0)
 
 class VolunteerSerializer(serializers.ModelSerializer):
     service_hours = serializers.IntegerField(read_only=True)
     full_name = serializers.CharField(read_only=True)
     age = serializers.IntegerField(read_only=True)
 
+    # NEW: computed degree based on affiliation_type
+    degree = serializers.SerializerMethodField()
+
     class Meta:
         model = Volunteer
-        fields = ["id", "user", "volunteer_identifier", "first_name", "middle_name", "last_name", "nickname", "full_name", "sex", "birthdate", "age",
-            "indigenous_affiliation", "mobile_number", "facebook_link", "hobbies", "affiliated_organizations", "permanent_address", "up_address", "senior_high_school",
-            "affiliation_type", "status", "is_profile_complete", "onboarding_completed_at", "service_hours", "created_at", "updated_at",
+        fields = [
+            "id", "user", "volunteer_identifier", "first_name", "middle_name",
+            "last_name", "nickname", "full_name", "sex", "birthdate", "age",
+            "indigenous_affiliation", "mobile_number", "facebook_link",
+            "hobbies", "affiliated_organizations", "permanent_address",
+            "up_address", "senior_high_school", "affiliation_type", "status",
+            "is_profile_complete", "onboarding_completed_at", "service_hours",
+            "degree", "created_at", "updated_at",
         ]
         read_only_fields = [
-            "id", "service_hours", "full_name", "age", "is_profile_complete", "onboarding_completed_at", "created_at", "updated_at",
+            "id", "service_hours", "full_name", "age", "degree",
+            "is_profile_complete", "onboarding_completed_at",
+            "created_at", "updated_at",
         ]
+
+    def get_degree(self, obj):
+        try:
+            if obj.affiliation_type == "student":
+                return getattr(obj.student_profile, "course", "") or ""
+            if obj.affiliation_type == "faculty":
+                return getattr(obj.faculty_profile, "department", "") or ""
+            if obj.affiliation_type == "staff":
+                return getattr(obj.staff_profile, "office", "") or ""
+            if obj.affiliation_type == "alumni":
+                return getattr(obj.alumni_profile, "degree_obtained", "") or ""
+        except Exception:
+            # .student_profile etc. raises RelatedObjectDoesNotExist
+            # if the profile row hasn't been created yet. Return blank.
+            return ""
+        return ""
 
 
 class BadgeSerializer(serializers.ModelSerializer):
@@ -314,12 +355,13 @@ class OnboardingPersonalInfoSerializer(serializers.Serializer):
     senior_high_school = serializers.CharField(max_length=300)
 
 class OnboardingStudentInfoSerializer(serializers.Serializer):
-    # senior_high_school = serializers.CharField(max_length=300)
+    student_number = serializers.CharField(required=False, allow_blank=True)
+    course = serializers.CharField(required=False, allow_blank=True)
     bachelor_degree = serializers.CharField(required=False, allow_blank=True)
     first_to_college = serializers.ChoiceField(choices=["yes", "no"])
     first_to_graduate = serializers.ChoiceField(choices=["yes", "no", "n_a"])
     first_in_up = serializers.ChoiceField(choices=["yes", "no"])
-
+    # senior_high_school = serializers.CharField(max_length=300)
 
 class OnboardingEmergencySerializer(serializers.Serializer):
     contact_name = serializers.CharField(max_length=200)

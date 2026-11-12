@@ -50,7 +50,7 @@ from .serializers import (
     VolunteerProfileSerializer,
     VolunteerSerializer,
 )
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsAdminUser
 
 
 class BadgeViewSet(viewsets.ModelViewSet):
@@ -188,15 +188,15 @@ def event_detail(request, pk):
 # ─────────────────────────────────────────────────────────────
 
 @api_view(["GET"])
-@permission_classes([IsAdminOrReadOnly])
+@permission_classes([IsAdminUser]) 
 def volunteer_list(request):
     volunteers = Volunteer.objects.all().order_by("-created_at")
     serializer = VolunteerSerializer(volunteers, many=True)
     return Response(serializer.data)
 
 
-@api_view(["GET", "PUT", "PATCH", "DELETE"])
-@permission_classes([IsAdminOrReadOnly])
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAdminUser])
 def volunteer_detail(request, pk):
     volunteer = get_object_or_404(Volunteer, pk=pk)
 
@@ -226,12 +226,26 @@ def join_event(request, pk):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    if EventParticipation.objects.filter(volunteer=volunteer, event=event).exists():
+    # Check for an existing participation (any status)
+    existing = EventParticipation.objects.filter(
+        volunteer=volunteer, event=event
+    ).first()
+
+    if existing:
+        if existing.status in ("registered", "attended"):
+            return Response(
+                {"detail": "You are already registered for this event."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Cancelled or no_show → reactivate as a fresh registration
+        existing.status = ParticipationStatus.REGISTERED
+        existing.save(update_fields=["status"])
         return Response(
-            {"detail": "You are already registered for this event."},
-            status=status.HTTP_400_BAD_REQUEST,
+            EventParticipationSerializer(existing).data,
+            status=status.HTTP_200_OK,
         )
 
+    # No prior row → create new
     participation = EventParticipation.objects.create(
         volunteer=volunteer,
         event=event,
@@ -343,6 +357,33 @@ def login_view(request):
         "is_superuser": user.is_superuser,
     })
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    user = request.user
+    volunteer = getattr(user, "volunteer", None)
+    return Response({
+        "user_id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+        "full_name": (
+            f"{user.first_name} {user.last_name}".strip()
+            or user.username
+        ),
+        "volunteer": (
+            {
+                "id": volunteer.id,
+                "identifier": volunteer.volunteer_identifier,
+                "full_name": volunteer.full_name,
+                "affiliation_type": volunteer.affiliation_type,
+            }
+            if volunteer else None
+        ),
+    })
 
 # ─────────────────────────────────────────────────────────────
 # OPTIONAL PROFILE INFORMATION
@@ -475,11 +516,13 @@ def complete_onboarding(request):
         StudentProfile.objects.update_or_create(
             volunteer=volunteer,
             defaults={
-                # "senior_high_school": si.get("senior_high_school", ""),
+                "student_number": si.get("student_number", ""),
+                "course": si.get("course", ""),
                 "bachelor_degree": si.get("bachelor_degree", ""),
                 "first_to_college": si.get("first_to_college", ""),
                 "first_to_graduate": si.get("first_to_graduate", ""),
                 "first_in_up": si.get("first_in_up", ""),
+                # "senior_high_school": si.get("senior_high_school", ""),
             },
         )
 
@@ -544,11 +587,11 @@ def google_login(request):
         )
 
     email = idinfo.get("email", "")
-    if not email.endswith("@up.edu.ph"):
-        return Response(
-            {"detail": "Only @up.edu.ph accounts are allowed."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    # if not email.endswith("@up.edu.ph"):
+    #     return Response(
+    #         {"detail": "Only @up.edu.ph accounts are allowed."},
+    #         status=status.HTTP_403_FORBIDDEN,
+    #     )
 
     # Get or create the User
     user, created = User.objects.get_or_create(
@@ -585,6 +628,8 @@ def google_login(request):
             "email": user.email,
             "volunteer_id": volunteer.id,
             "is_profile_complete": volunteer.is_profile_complete,
+            "is_staff": user.is_staff,              
+            "is_superuser": user.is_superuser,     
             "created": created,
         },
         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
