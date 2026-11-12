@@ -47,7 +47,6 @@ from .serializers import (
     VolunteerBackgroundSerializer,
     VolunteerBadgeReadSerializer,
     VolunteerContactSerializer,
-    VolunteerProfileSerializer,
     VolunteerSerializer,
 )
 from .permissions import IsAdminOrReadOnly, IsAdminUser
