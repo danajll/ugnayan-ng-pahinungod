@@ -19,7 +19,7 @@ from .models import (Event, Volunteer, EventParticipation, ParticipationStatus, 
 from .serializers import (EventSerializer, VolunteerSerializer, EventParticipationSerializer, RegisterSerializer, VolunteerContactSerializer, VolunteerAddressSerializer,
     VolunteerBackgroundSerializer, EmergencyContactSerializer, ProgramSerializer, SubjectSerializer, OnboardingSerializer,
 )
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsAdminUser
 
 
 # ─────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ def event_detail(request, pk):
 # ─────────────────────────────────────────────────────────────
 
 @api_view(["GET"])
-@permission_classes([IsAdminOrReadOnly])
+@permission_classes([IsAdminUser]) 
 def volunteer_list(request):
     volunteers = Volunteer.objects.all().order_by("-created_at")
     serializer = VolunteerSerializer(volunteers, many=True)
@@ -83,7 +83,7 @@ def volunteer_list(request):
 
 
 @api_view(["GET", "PATCH"])
-@permission_classes([IsAdminOrReadOnly])
+@permission_classes([IsAdminUser])
 def volunteer_detail(request, pk):
     volunteer = get_object_or_404(Volunteer, pk=pk)
 
@@ -113,12 +113,26 @@ def join_event(request, pk):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    if EventParticipation.objects.filter(volunteer=volunteer, event=event).exists():
+    # Check for an existing participation (any status)
+    existing = EventParticipation.objects.filter(
+        volunteer=volunteer, event=event
+    ).first()
+
+    if existing:
+        if existing.status in ("registered", "attended"):
+            return Response(
+                {"detail": "You are already registered for this event."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Cancelled or no_show → reactivate as a fresh registration
+        existing.status = ParticipationStatus.REGISTERED
+        existing.save(update_fields=["status"])
         return Response(
-            {"detail": "You are already registered for this event."},
-            status=status.HTTP_400_BAD_REQUEST,
+            EventParticipationSerializer(existing).data,
+            status=status.HTTP_200_OK,
         )
 
+    # No prior row → create new
     participation = EventParticipation.objects.create(
         volunteer=volunteer,
         event=event,

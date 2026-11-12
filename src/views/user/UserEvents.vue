@@ -1,91 +1,162 @@
-
 <script setup>
-import { computed, ref } from 'vue';
-import { Search, CalendarDays, MapPin, Users } from 'lucide-vue-next';
+import { computed, ref, onMounted } from 'vue'
+import { Search, CalendarDays, MapPin, Users } from 'lucide-vue-next'
+import { eventService } from '../../api/events'
+import { participationService } from '../../api/participations'
 
-const search = ref('');
-const region = ref('All locations');
-const dateRange = ref('Any time');
-const category = ref('All');
+// ─── Filters ───
+const search = ref('')
+const region = ref('All locations')
+const dateRange = ref('Any time')
+const category = ref('All')
 
-const categories = ['All', 'Health', 'Education', 'Environment', 'Others'];
+// Align with backend EventCategory choices
+const categories = [
+  { label: 'All',                value: 'All' },
+  { label: 'Health',             value: 'HEALTH' },
+  { label: 'Education',          value: 'EDUCATION & LITERACY' },
+  { label: 'Environment',        value: 'ENVIRONMENT & ECOLOGY' },
+  { label: 'NSTP / CWTS',        value: 'NSTP / CWTS' },
+  { label: 'IP',                 value: 'INDIGENOUS PEOPLES (IP)' },
+]
 
-const events = [
-  {
-    title: 'UPMin Bloodletting Activity',
-    category: 'Health',
-    date: 'Dec 02 - Dec 04, 2026',
-    location: 'Mintal, Davao City',
-    image: '/images/programs/bloodletting.jpg',
-    description: 'Help support community blood donation and healthcare outreach.',
-    tags: ['Healthcare Professionals/Med Personnel', 'DHK Students', 'NSTP Accredited'],
-    lead: 'Prof. D. Santiago (SOM)',
-    slots: 8
-  },
-  {
-    title: 'Affirmative Action Program',
-    category: 'Education',
-    date: 'Dec 05, 2026',
-    location: 'Davao Region',
-    image: '/images/programs/aap.jpg',
-    description: 'Support learners through tutorials and college admission test preparation.',
-    tags: ['Education', 'Student Volunteers'],
-    lead: 'AAP Coordinators',
-    slots: 12
-  },
-  {
-    title: 'Gurong Pahinungod & Literacy',
-    category: 'Education',
-    date: 'Dec 10, 2026',
-    location: 'Davao Region',
-    image: '/images/programs/gurongpahinungod.jpg',
-    description: 'Help bring learning support and educational resources to communities.',
-    tags: ['Teaching', 'Community'],
-    lead: 'Program Coordinators',
-    slots: 6
-  },
-  {
-    title: 'Community Environmental Day',
-    category: 'Environment',
-    date: 'Dec 12, 2026',
-    location: 'South Cotabato',
-    image: '/images/programs/nature.jpg',
-    description: 'Join local partners in environmental awareness and community care.',
-    tags: ['Environment', 'Community'],
-    lead: 'Environmental Team',
-    slots: 15
-  },
-  {
-    title: 'Community Donation Drive',
-    category: 'Others',
-    date: 'Dec 15, 2026',
-    location: 'Davao Region',
-    image: '/images/programs/donation.jpg',
-    description: 'Assist with organizing and distributing donated supplies.',
-    tags: ['Donation Drive', 'Outreach'],
-    lead: 'Volunteer Coordinators',
-    slots: 10
+// ─── State ───
+const events = ref([])
+const participations = ref([])   // [{ id, event, status, ... }]
+const loading = ref(true)
+const loadError = ref(null)
+const actionError = ref(null)
+const busyEventId = ref(null)    // for button loading state
+
+// Map eventId → participationId (only for ACTIVE joins)
+const activeJoinMap = computed(() => {
+  const map = new Map()
+  for (const p of participations.value) {
+    if (p.status === 'registered' || p.status === 'attended') {
+      map.set(p.event, p.id)
+    }
   }
-];
+  return map
+})
 
+// ─── Fetch ───
+async function loadAll() {
+  loading.value = true
+  loadError.value = null
+  try {
+    const [evRes, partRes] = await Promise.all([
+      eventService.list(),
+      participationService.myParticipations(),
+    ])
+    events.value = evRes.data
+    participations.value = partRes.data
+  } catch (err) {
+    loadError.value = err.response?.data?.detail || 'Failed to load events.'
+    console.error(err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadAll)
+
+// ─── Helpers ───
+const categoryLabel = (value) => {
+  const c = categories.find(x => x.value === value)
+  return c ? c.label : value
+}
+
+const slotsLeft = (event) => {
+  const quota = event.quota || 0
+  const taken = event.registered_count || 0
+  return Math.max(quota - taken, 0)
+}
+
+const isJoined = (eventId) => activeJoinMap.value.has(eventId)
+
+const formatDate = (iso) => {
+  if (!iso) return 'Date to be announced'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  })
+}
+
+// ─── Filtered list (works on raw API fields) ───
 const filteredEvents = computed(() => {
-  return events.filter(event => {
-    const matchesSearch = `${event.title} ${event.location} ${event.description}`
-      .toLowerCase()
-      .includes(search.value.toLowerCase());
+  const s = search.value.trim().toLowerCase()
+  return events.value.filter(event => {
+    const matchesSearch = !s || [
+      event.name, event.location, event.description
+    ].some(f => (f || '').toLowerCase().includes(s))
 
-    const matchesCategory = category.value === 'All' || event.category === category.value;
-    const matchesRegion = region.value === 'All locations' || event.location.includes(region.value);
+    const matchesCategory = category.value === 'All' || event.category === category.value
 
-    return matchesSearch && matchesCategory && matchesRegion;
-  });
-});
+    const matchesRegion =
+      region.value === 'All locations' ||
+      (event.location || '').toLowerCase().includes(region.value.toLowerCase())
 
-const signedUp = ref([]);
+    // Date filter
+    let matchesDate = true
+    if (dateRange.value === 'Upcoming') {
+      matchesDate = new Date(event.start_datetime) >= new Date()
+    } else if (dateRange.value === 'This Month') {
+      const now = new Date()
+      const start = new Date(event.start_datetime)
+      matchesDate = start.getMonth() === now.getMonth() &&
+                    start.getFullYear() === now.getFullYear()
+    } else if (dateRange.value === 'Last 7 Days') {
+      const now = new Date()
+      const start = new Date(event.start_datetime)
+      const diff = (now - start) / (1000 * 60 * 60 * 24)
+      matchesDate = diff >= 0 && diff <= 7
+    }
 
-function signUp(title) {
-  if (!signedUp.value.includes(title)) {
-    signedUp.value.push(title);
+    return matchesSearch && matchesCategory && matchesRegion && matchesDate
+  })
+})
+
+// ─── Actions ───
+async function joinEvent(eventId) {
+  actionError.value = null
+  busyEventId.value = eventId
+  try {
+    const { data } = await eventService.join(eventId)
+    // Add or replace the participation row
+    const idx = participations.value.findIndex(p => p.event === eventId)
+    if (idx !== -1) participations.value[idx] = data
+    else participations.value.push(data)
+
+    // Optimistically bump registered_count
+    const ev = events.value.find(e => e.id === eventId)
+    if (ev) ev.registered_count = (ev.registered_count || 0) + 1
+  } catch (err) {
+    actionError.value = err.response?.data?.detail || 'Could not join event.'
+    console.error(err)
+  } finally {
+    busyEventId.value = null
+  }
+}
+
+async function cancelSignup(eventId) {
+  const participationId = activeJoinMap.value.get(eventId)
+  if (!participationId) return
+
+  actionError.value = null
+  busyEventId.value = eventId
+  try {
+    const { data } = await participationService.cancel(participationId)
+    const idx = participations.value.findIndex(p => p.id === participationId)
+    if (idx !== -1) participations.value[idx] = data
+
+    // Optimistically decrement registered_count
+    const ev = events.value.find(e => e.id === eventId)
+    if (ev && ev.registered_count > 0) ev.registered_count -= 1
+  } catch (err) {
+    actionError.value = err.response?.data?.detail || 'Could not cancel signup.'
+    console.error(err)
+  } finally {
+    busyEventId.value = null
   }
 }
 </script>
@@ -121,13 +192,13 @@ function signUp(title) {
 
       <div class="user-category-tabs">
         <button
-          v-for="item in categories"
-          :key="item"
+          v-for="cat in categories"
+          :key="cat.value"
           type="button"
-          :class="{ active: category === item }"
-          @click="category = item"
+          :class="{ active: category === cat.value }"
+          @click="category = cat.value"
         >
-          {{ item }}
+          {{ cat.label }}
         </button>
       </div>
     </div>
@@ -137,64 +208,104 @@ function signUp(title) {
       <span>Find an activity that works for you.</span>
     </div>
 
-    <div v-if="filteredEvents.length" class="user-event-grid">
+    <div v-if="loading" class="user-empty-state">
+      <p>Loading events…</p>
+    </div>
+
+    <div v-else-if="loadError" class="user-empty-state">
+      <h2>Could not load events</h2>
+      <p>{{ loadError }}</p>
+      <button class="user-button user-button-outline" @click="loadAll">Retry</button>
+    </div>
+
+    <div v-else-if="filteredEvents.length" class="user-event-grid">
       <article
         v-for="event in filteredEvents"
-        :key="event.title"
+        :key="event.id"
         class="user-event-card"
       >
-        <img class="user-event-image" :src="event.image" :alt="event.title" />
+        <img
+          class="user-event-image"
+          :src="event.cover_image || '/images/programs/bloodletting.jpg'"
+          :alt="event.name"
+        />
 
         <div class="user-event-body">
           <span
             class="user-category-pill"
-            :class="`category-${event.category.toLowerCase()}`"
+            :class="`category-${(event.category || '').toLowerCase().replace(/[^a-z]/g, '-')}`"
           >
-            {{ event.category }}
+            {{ categoryLabel(event.category) }}
           </span>
 
           <p class="user-event-meta">
             <CalendarDays :size="13" />
-            {{ event.date }}
+            {{ formatDate(event.start_datetime) }}
           </p>
 
           <p class="user-event-meta">
             <MapPin :size="13" />
-            {{ event.location }}
+            {{ event.location || 'Location to be announced' }}
           </p>
 
-          <h2>{{ event.title }}</h2>
+          <h2>{{ event.name }}</h2>
           <p class="user-event-description">{{ event.description }}</p>
 
           <div class="user-event-tags">
-            <span v-for="tag in event.tags" :key="tag">
+            <span v-for="tag in (event.prerequisites || [])" :key="tag">
               {{ tag }}
             </span>
           </div>
 
           <div class="user-event-lead">
-            <span>Lead: {{ event.lead }}</span>
+            <span>
+              {{ isJoined(event.id) ? '✅ You are registered' : '' }}
+            </span>
             <strong>
               <Users :size="13" />
-              {{ event.slots }} slots left
+              {{ slotsLeft(event) }} slots left
             </strong>
           </div>
 
-          <RouterLink class="user-button user-button-outline" to="/user/events">
-            More Details
-          </RouterLink>
-
           <button
+            v-if="!isJoined(event.id)"
             class="user-button user-button-primary"
             type="button"
-            :disabled="signedUp.includes(event.title)"
-            @click="signUp(event.title)"
+            :disabled="busyEventId === event.id || slotsLeft(event) <= 0"
+            @click="joinEvent(event.id)"
           >
-            {{ signedUp.includes(event.title) ? 'Signed Up' : 'Be a Volunteer' }}
+            {{ busyEventId === event.id ? 'Joining…' : (slotsLeft(event) <= 0 ? 'Fully Booked' : 'Be a Volunteer') }}
+          </button>
+
+          <button
+            v-else
+            class="user-button user-button-outline"
+            type="button"
+            :disabled="busyEventId === event.id"
+            @click="cancelSignup(event.id)"
+          >
+            {{ busyEventId === event.id ? 'Cancelling…' : 'Cancel Signup' }}
           </button>
         </div>
       </article>
     </div>
+
+    <div v-else class="user-empty-state">
+      <Search :size="30" />
+      <h2>No events found</h2>
+      <p>Try changing your search or filters.</p>
+      <button
+        class="user-button user-button-outline"
+        type="button"
+        @click="search = ''; region = 'All locations'; category = 'All'; dateRange = 'Any time'"
+      >
+        Clear filters
+      </button>
+    </div>
+
+    <p v-if="actionError" style="color:#d32f2f; font-size:0.9rem; text-align:center; padding: 12px;">
+      {{ actionError }}
+    </p>
 
     <div v-else class="user-empty-state">
       <Search :size="30" />
@@ -210,8 +321,5 @@ function signUp(title) {
       </button>
     </div>
 
-    <p class="user-demo-note">
-      Event listings and sign-up actions are currently sample frontend data and are not yet saved to the backend.
-    </p>
   </section>
 </template>

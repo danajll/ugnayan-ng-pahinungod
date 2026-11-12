@@ -92,13 +92,11 @@ const router = createRouter({
 // Auth guard
 // ─────────────────────────────────────────────────────────────
 
-// Cache /api/me/ response so we don't hit the backend on every nav
 let cachedMe = null
 
 async function fetchMe() {
   if (cachedMe) return cachedMe
   try {
-    // Import here to avoid circular import issues at module load time
     const { meService } = await import('../api/me')
     const { data } = await meService.get()
     cachedMe = data
@@ -109,7 +107,6 @@ async function fetchMe() {
   }
 }
 
-// Clear the cache when signing out — add this line to sign-out handlers
 export function invalidateMeCache() {
   cachedMe = null
 }
@@ -117,23 +114,23 @@ export function invalidateMeCache() {
 router.beforeEach(async (to) => {
   const token = localStorage.getItem('auth_token')
 
-  // 1. /register requires a token (Google login must happen first)
-  if (to.path === '/register' && !token) {
+  // 1. /register needs a token (must sign in via Google first)
+  if (to.meta.requiresAuth && !token) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
 
-  // 2. Everything under /admin and /user requires a token
-  const requiresAuth = to.path.startsWith('/admin') || to.path.startsWith('/user')
-  if (requiresAuth && !token) {
+  // 2. /admin/* and /user/* need a token
+  const needsAuth = to.path.startsWith('/admin') || to.path.startsWith('/user')
+  if (needsAuth && !token) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
 
-  // 3. /admin/* requires staff or superuser
+  // 3. /admin/* needs staff/superuser
   if (to.path.startsWith('/admin') && token) {
     const me = await fetchMe()
 
     if (!me) {
-      // Token invalid / expired — nuke it and send to login
+      // Token invalid → clear and send to login
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user_id')
       localStorage.removeItem('volunteer_id')
@@ -142,12 +139,10 @@ router.beforeEach(async (to) => {
     }
 
     if (!me.is_staff && !me.is_superuser) {
-      // Logged in, but not an admin — redirect to their own dashboard
       return { path: '/user' }
     }
   }
 
-  // Otherwise, proceed normally
   return true
 })
 
