@@ -6,6 +6,7 @@ import {
   PanelLeftClose, PanelLeftOpen, ArrowLeft, ExternalLink, ChevronDown
 } from 'lucide-vue-next'
 import { meService } from '../../api/me'
+import { invalidateMeCache } from '../../router/index'
 
 const router = useRouter()
 const sidebarCollapsed = ref(false)
@@ -43,6 +44,8 @@ const displayRole = computed(() => {
 const handleSignOut = () => {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('user_id')
+  localStorage.removeItem('volunteer_id')
+  invalidateMeCache()
   router.push('/login')
 }
 

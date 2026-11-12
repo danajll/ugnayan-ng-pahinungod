@@ -389,11 +389,13 @@ def complete_onboarding(request):
         StudentProfile.objects.update_or_create(
             volunteer=volunteer,
             defaults={
-                # "senior_high_school": si.get("senior_high_school", ""),
+                "student_number": si.get("student_number", ""),
+                "course": si.get("course", ""),
                 "bachelor_degree": si.get("bachelor_degree", ""),
                 "first_to_college": si.get("first_to_college", ""),
                 "first_to_graduate": si.get("first_to_graduate", ""),
                 "first_in_up": si.get("first_in_up", ""),
+                # "senior_high_school": si.get("senior_high_school", ""),
             },
         )
 
@@ -458,11 +460,11 @@ def google_login(request):
         )
 
     email = idinfo.get("email", "")
-    if not email.endswith("@up.edu.ph"):
-        return Response(
-            {"detail": "Only @up.edu.ph accounts are allowed."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    # if not email.endswith("@up.edu.ph"):
+    #     return Response(
+    #         {"detail": "Only @up.edu.ph accounts are allowed."},
+    #         status=status.HTTP_403_FORBIDDEN,
+    #     )
 
     # Get or create the User
     user, created = User.objects.get_or_create(
@@ -499,6 +501,8 @@ def google_login(request):
             "email": user.email,
             "volunteer_id": volunteer.id,
             "is_profile_complete": volunteer.is_profile_complete,
+            "is_staff": user.is_staff,              
+            "is_superuser": user.is_superuser,     
             "created": created,
         },
         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,

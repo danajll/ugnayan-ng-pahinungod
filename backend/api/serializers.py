@@ -315,12 +315,13 @@ class OnboardingPersonalInfoSerializer(serializers.Serializer):
     senior_high_school = serializers.CharField(max_length=300)
 
 class OnboardingStudentInfoSerializer(serializers.Serializer):
-    # senior_high_school = serializers.CharField(max_length=300)
+    student_number = serializers.CharField(required=False, allow_blank=True)
+    course = serializers.CharField(required=False, allow_blank=True)
     bachelor_degree = serializers.CharField(required=False, allow_blank=True)
     first_to_college = serializers.ChoiceField(choices=["yes", "no"])
     first_to_graduate = serializers.ChoiceField(choices=["yes", "no", "n_a"])
     first_in_up = serializers.ChoiceField(choices=["yes", "no"])
-
+    # senior_high_school = serializers.CharField(max_length=300)
 
 class OnboardingEmergencySerializer(serializers.Serializer):
     contact_name = serializers.CharField(max_length=200)
