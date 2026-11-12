@@ -4,8 +4,25 @@ from django.db import transaction
 from rest_framework import serializers
 from django.db.models import Count, Q
 
-
-from .models import (Event, Volunteer, VolunteerMeta, EventParticipation, ParticipationStatus, StudentProfile, StaffProfile, FacultyProfile, AlumniProfile, VolunteerContact, VolunteerAddress, VolunteerBackground, EmergencyContact, Program, Subject, VolunteerBackgroundStatus,
+from .models import (
+    AlumniProfile,
+    Badge,
+    EmergencyContact,
+    Event,
+    EventParticipation,
+    FacultyProfile,
+    ParticipationStatus,
+    Program,
+    StaffProfile,
+    StudentProfile,
+    Subject,
+    Volunteer,
+    VolunteerAddress,
+    VolunteerBackground,
+    VolunteerBackgroundStatus,
+    VolunteerContact,
+    VolunteerBadge,
+    VolunteerMeta,
 )
 
 
@@ -90,6 +107,29 @@ class VolunteerSerializer(serializers.ModelSerializer):
             # if the profile row hasn't been created yet. Return blank.
             return ""
         return ""
+
+
+class BadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Badge
+        fields = ["id", "name", "description", "icon_url", "criteria_type"]
+        read_only_fields = ["id"]
+
+
+class VolunteerBadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VolunteerBadge
+        fields = ["id", "volunteer", "badge", "event", "date_awarded"]
+        read_only_fields = ["id", "date_awarded"]
+
+
+class VolunteerBadgeReadSerializer(serializers.ModelSerializer):
+    badge = BadgeSerializer(read_only=True)
+
+    class Meta:
+        model = VolunteerBadge
+        fields = ["id", "volunteer", "badge", "event", "date_awarded"]
+        read_only_fields = fields
 
 
 class EventParticipationSerializer(serializers.ModelSerializer):
