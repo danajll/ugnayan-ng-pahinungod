@@ -55,15 +55,41 @@ class VolunteerSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
     age = serializers.IntegerField(read_only=True)
 
+    # NEW: computed degree based on affiliation_type
+    degree = serializers.SerializerMethodField()
+
     class Meta:
         model = Volunteer
-        fields = ["id", "user", "volunteer_identifier", "first_name", "middle_name", "last_name", "nickname", "full_name", "sex", "birthdate", "age",
-            "indigenous_affiliation", "mobile_number", "facebook_link", "hobbies", "affiliated_organizations", "permanent_address", "up_address", "senior_high_school",
-            "affiliation_type", "status", "is_profile_complete", "onboarding_completed_at", "service_hours", "created_at", "updated_at",
+        fields = [
+            "id", "user", "volunteer_identifier", "first_name", "middle_name",
+            "last_name", "nickname", "full_name", "sex", "birthdate", "age",
+            "indigenous_affiliation", "mobile_number", "facebook_link",
+            "hobbies", "affiliated_organizations", "permanent_address",
+            "up_address", "senior_high_school", "affiliation_type", "status",
+            "is_profile_complete", "onboarding_completed_at", "service_hours",
+            "degree", "created_at", "updated_at",
         ]
         read_only_fields = [
-            "id", "service_hours", "full_name", "age", "is_profile_complete", "onboarding_completed_at", "created_at", "updated_at",
+            "id", "service_hours", "full_name", "age", "degree",
+            "is_profile_complete", "onboarding_completed_at",
+            "created_at", "updated_at",
         ]
+
+    def get_degree(self, obj):
+        try:
+            if obj.affiliation_type == "student":
+                return getattr(obj.student_profile, "course", "") or ""
+            if obj.affiliation_type == "faculty":
+                return getattr(obj.faculty_profile, "department", "") or ""
+            if obj.affiliation_type == "staff":
+                return getattr(obj.staff_profile, "office", "") or ""
+            if obj.affiliation_type == "alumni":
+                return getattr(obj.alumni_profile, "degree_obtained", "") or ""
+        except Exception:
+            # .student_profile etc. raises RelatedObjectDoesNotExist
+            # if the profile row hasn't been created yet. Return blank.
+            return ""
+        return ""
 
 
 class EventParticipationSerializer(serializers.ModelSerializer):

@@ -17,7 +17,7 @@ onMounted(async () => {
       name: `${v.first_name} ${v.last_name}`,
       id: v.volunteer_identifier,
       affiliation: v.affiliation_type, // 'student', 'faculty', etc.
-      degree: 'N/A', // Your backend doesn't send this in the main list yet
+      degree: v.degree || 'N/A',
       timeIn: 'N/A', // Backend doesn't track this yet
       timeOut: 'N/A'
     }))
