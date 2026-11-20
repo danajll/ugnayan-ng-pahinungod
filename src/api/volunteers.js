@@ -7,4 +7,5 @@ export const volunteerService = {
   myProfile:     ()   => api.get('/volunteers/me/profile/'),
   updateProfile: (data) => api.patch('/volunteers/me/profile/', data),
   onboard:       (data) => api.patch('/volunteers/me/onboarding/', data),
+  getProfile: (id)    => api.get(`/volunteers/${id}/profile/`),
 }

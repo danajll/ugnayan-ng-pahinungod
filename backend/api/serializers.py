@@ -74,6 +74,7 @@ class VolunteerSerializer(serializers.ModelSerializer):
 
     # NEW: computed degree based on affiliation_type
     degree = serializers.SerializerMethodField()
+    student_number = serializers.SerializerMethodField() 
 
     class Meta:
         model = Volunteer
@@ -84,11 +85,11 @@ class VolunteerSerializer(serializers.ModelSerializer):
             "hobbies", "affiliated_organizations", "permanent_address",
             "up_address", "senior_high_school", "affiliation_type", "status",
             "is_profile_complete", "onboarding_completed_at", "service_hours",
-            "degree", "created_at", "updated_at",
+            "degree", "student_number", "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "service_hours", "full_name", "age", "degree",
-            "is_profile_complete", "onboarding_completed_at",
+            "is_profile_complete", "onboarding_completed_at", "student_number",
             "created_at", "updated_at",
         ]
 
@@ -108,6 +109,13 @@ class VolunteerSerializer(serializers.ModelSerializer):
             return ""
         return ""
 
+    def get_student_number(self, obj): 
+        try:
+            if obj.affiliation_type == "student":
+                return getattr(obj.student_profile, "student_number", "") or ""
+        except Exception:
+            return ""
+        return ""
 
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:

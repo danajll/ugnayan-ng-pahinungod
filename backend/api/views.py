@@ -195,19 +195,44 @@ def volunteer_list(request):
 
 
 @api_view(["GET", "PATCH"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAuthenticated])
 def volunteer_detail(request, pk):
     volunteer = get_object_or_404(Volunteer, pk=pk)
+
+    is_admin = request.user.is_staff or request.user.is_superuser
+    is_owner = (
+        hasattr(request.user, "volunteer")
+        and request.user.volunteer.id == volunteer.id
+    )
+
+    if not (is_admin or is_owner):
+        return Response(
+            {"detail": "You do not have permission to access this volunteer."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     if request.method == "GET":
         return Response(VolunteerSerializer(volunteer).data)
 
-    serializer = VolunteerSerializer(volunteer, data=request.data, partial=True)
+    # PATCH path — strip admin-only fields when the caller isn't an admin
+    data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+
+    if not is_admin:
+        # Prevent volunteers from escalating their own privileges
+        for blocked in ("affiliation_type", "status", "user", "volunteer_identifier"):
+            data.pop(blocked, None)
+
+    serializer = VolunteerSerializer(volunteer, data=data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_volunteer_profile(request, pk):
+    volunteer = get_object_or_404(Volunteer, pk=pk)
+    return Response(_serialize_profile(volunteer))
 
 # ─────────────────────────────────────────────────────────────
 # EVENT PARTICIPATION
@@ -567,6 +592,7 @@ def google_login(request):
     """
 
     token = request.data.get("id_token")
+
     if not token:
         return Response(
             {"detail": "id_token is required."},
@@ -574,14 +600,19 @@ def google_login(request):
         )
 
     try:
+        client_id = django_settings.SOCIALACCOUNT_PROVIDERS["google"]["APP"]["client_id"]
+
         idinfo = google_id_token.verify_oauth2_token(
             token,
             google_requests.Request(),
-            django_settings.SOCIALACCOUNT_PROVIDERS["google"]["APP"]["client_id"],
+            client_id,
         )
-    except ValueError:
+
+    except ValueError as exc:
+        print("Google verification error:", str(exc))
+
         return Response(
-            {"detail": "Invalid token."},
+            {"detail": "Google token verification failed."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 

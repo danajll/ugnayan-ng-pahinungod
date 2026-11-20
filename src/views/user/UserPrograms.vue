@@ -1,71 +1,134 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { ArrowRight, Search } from 'lucide-vue-next';
+import { ref, computed, onMounted } from 'vue'
+import { ArrowRight, Search } from 'lucide-vue-next'
+import api from '../../api/client'
+import { eventService } from '../../api/events'
+import { useRoute } from 'vue-router'
 
-const search = ref('');
-const category = ref('All programs');
+// ─── Marketing metadata per backend Program.code ───
+const PROGRAM_DETAILS = {
+  AFFIRMATIVE_ACTION_PROGRAM: {
+    category: 'Education and Tutoring',
+    image: '/images/programs/aap.jpg',
+    description: 'Providing intensive tutorial sessions, college admission test prep, and customized learning materials.',
+    eventCategories: ['EDUCATION & LITERACY'],
+  },
+  DISASTER_RISK_REDUCTION: {
+    category: 'Community Development',
+    image: '/images/programs/donation.jpg',
+    description: 'Training communities for disaster preparedness and emergency response.',
+    eventCategories: ['NSTP / CWTS'],
+  },
+  TUTORIAL_SERVICE_PROGRAM: {
+    category: 'Education and Tutoring',
+    image: '/images/programs/education.jpg',
+    description: 'Helping communities access learning support and educational activities.',
+    eventCategories: ['EDUCATION & LITERACY'],
+  },
+  UP_BARMM_MBHTE_MOU: {
+    category: 'Community Development',
+    image: '/images/programs/bloodletting.jpg',
+    description: 'Peace education and community assistance in the Bangsamoro region.',
+    eventCategories: ['INDIGENOUS PEOPLES (IP)'],
+  },
+  TEACHER_DEVELOPMENT_PROGRAM: {
+    category: 'Education and Tutoring',
+    image: '/images/programs/gurongpahinungod.jpg',
+    description: 'Deploying graduate volunteers and student teachers to rural schools in Davao Region and BARMM.',
+    eventCategories: ['EDUCATION & LITERACY'],
+  },
+  UGNAYAN_NG_PAHINUNGOD_ONLINE: {
+    category: 'Community Development',
+    image: '/images/programs/education.jpg',
+    description: 'Remote volunteer opportunities for online learning and outreach.',
+    eventCategories: [],
+  },
+  ENVIRONMENTAL_AWARENESS_PROGRAM: {
+    category: 'Environment',
+    image: '/images/programs/nature.jpg',
+    description: 'Supporting environmental awareness, conservation, and community-led activities.',
+    eventCategories: ['ENVIRONMENT & ECOLOGY'],
+  },
+}
+
+const FALLBACK = {
+  category: 'Community Development',
+  image: '/images/programs/bloodletting.jpg',
+  description: 'A volunteer initiative by Ugnayan ng Pahinungód.',
+  eventCategories: [],
+}
+
+// ─── State ───
+const search = ref('')
+const category = ref('All programs')
+const programs = ref([])
+const eventsByCategory = ref({})
+const loading = ref(true)
+const loadError = ref(null)
+
+const route = useRoute()
+if (route.query.category) {
+  category.value = route.query.category
+}
 
 const categories = [
   'All programs',
   'Health',
   'Education and Tutoring',
   'Community Development',
-  'Environment'
-];
+  'Environment',
+]
 
-const programs = [
-  {
-    title: 'Bloodletting & Health Outreach',
-    category: 'Health',
-    image: '/images/programs/bloodletting.jpg',
-    description: 'Promoting community healthcare, voluntary blood donation drives, and missions across remote clinics.'
-  },
-  {
-    title: 'Affirmative Action Program (AAP)',
-    category: 'Education and Tutoring',
-    image: '/images/programs/aap.jpg',
-    description: 'Providing intensive tutorial sessions, college admission test prep, and customized learning materials.'
-  },
-  {
-    title: 'Gurong Pahinungod & Literacy',
-    category: 'Community Development',
-    image: '/images/programs/gurongpahinungod.jpg',
-    description: 'Deploying graduate volunteers and student teachers to rural schools in Davao Region and BARMM.'
-  },
-  {
-    title: 'Environmental Awareness',
-    category: 'Environment',
-    image: '/images/programs/nature.jpg',
-    description: 'Supporting environmental awareness, conservation, and community-led activities.'
-  },
-  {
-    title: 'Community Donation Drive',
-    category: 'Community Development',
-    image: '/images/programs/donation.jpg',
-    description: 'Connecting volunteers with donation drives and community assistance initiatives.'
-  },
-  {
-    title: 'Education Outreach',
-    category: 'Education and Tutoring',
-    image: '/images/programs/education.jpg',
-    description: 'Helping communities access learning support and educational activities.'
+// ─── Fetch on mount ───
+onMounted(async () => {
+  try {
+    const [progRes, eventsRes] = await Promise.all([
+      api.get('/programs/'),
+      eventService.list(),
+    ])
+
+    programs.value = progRes.data.map(p => {
+      const meta = PROGRAM_DETAILS[p.code] || FALLBACK
+      return {
+        id: p.id,
+        code: p.code,
+        title: p.name,
+        category: meta.category,
+        image: meta.image,
+        description: meta.description,
+        eventCategories: meta.eventCategories,
+      }
+    })
+
+    const now = new Date()
+    const counts = {}
+    for (const ev of eventsRes.data) {
+      if (new Date(ev.start_datetime) < now) continue
+      const cat = ev.category || 'Unknown'
+      counts[cat] = (counts[cat] || 0) + 1
+    }
+    eventsByCategory.value = counts
+  } catch (err) {
+    loadError.value = err.response?.data?.detail || 'Failed to load programs.'
+    console.error(err)
+  } finally {
+    loading.value = false
   }
-];
+})
 
 const filteredPrograms = computed(() => {
-  return programs.filter(program => {
+  return programs.value.filter(p => {
     const matchesCategory =
-      category.value === 'All programs' ||
-      program.category === category.value;
+      category.value === 'All programs' || p.category === category.value
 
     const matchesSearch =
-      `${program.title} ${program.description}`
+      `${p.title} ${p.description}`
         .toLowerCase()
-        .includes(search.value.toLowerCase());
+        .includes(search.value.toLowerCase())
 
-    return matchesCategory && matchesSearch;
-  });
-});
+    return matchesCategory && matchesSearch
+  })
+})
 </script>
 
 <template>
@@ -108,10 +171,22 @@ const filteredPrograms = computed(() => {
       </button>
     </div>
 
-    <div class="user-program-grid">
+    <!-- Loading -->
+    <div v-if="loading" class="user-empty-state">
+      <p>Loading programs…</p>
+    </div>
+
+    <!-- Load error -->
+    <div v-else-if="loadError" class="user-empty-state">
+      <h2>Could not load programs</h2>
+      <p>{{ loadError }}</p>
+    </div>
+
+    <!-- Program grid -->
+    <div v-else-if="filteredPrograms.length" class="user-program-grid">
       <article
         v-for="program in filteredPrograms"
-        :key="program.title"
+        :key="program.id"
         class="user-program-card user-program-page-card"
       >
         <img :src="program.image" :alt="program.title" />
@@ -121,15 +196,24 @@ const filteredPrograms = computed(() => {
           <h2>{{ program.title }}</h2>
           <p>{{ program.description }}</p>
 
-          <RouterLink to="/user/events">
+          <RouterLink
+            v-if="program.eventCategories.length"
+            :to="{ path: '/user/events', query: { category: program.eventCategories[0] } }"
+          >
             Find related events
+            <ArrowRight :size="15" />
+          </RouterLink>
+
+          <RouterLink v-else to="/user/events">
+            Browse events
             <ArrowRight :size="15" />
           </RouterLink>
         </div>
       </article>
     </div>
 
-    <div v-if="!filteredPrograms.length" class="user-empty-state">
+    <!-- Empty after filter -->
+    <div v-else class="user-empty-state">
       <h2>No programs found</h2>
       <p>Try another search term or category.</p>
     </div>

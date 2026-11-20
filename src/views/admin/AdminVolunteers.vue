@@ -14,11 +14,12 @@ onMounted(async () => {
     const { data } = await volunteerService.list()
     // Map Django output to match your table's expected fields
     volunteers.value = data.map(v => ({
+      id: v.id, // <-- Actual DB ID for routing
+      identifier: v.volunteer_identifier, // <-- Display ID
       name: `${v.first_name} ${v.last_name}`,
-      id: v.volunteer_identifier,
-      affiliation: v.affiliation_type, // 'student', 'faculty', etc.
+      affiliation: v.affiliation_type,
       degree: v.degree || 'N/A',
-      timeIn: 'N/A', // Backend doesn't track this yet
+      timeIn: 'N/A',
       timeOut: 'N/A'
     }))
   } catch (err) {
@@ -136,7 +137,7 @@ const filteredVolunteers = computed(() => {
                   </strong>
 
                   <span>
-                    {{ volunteer.id }}
+                    {{ volunteer.identifier }}
                   </span>
 
                 </div>
@@ -172,17 +173,10 @@ const filteredVolunteers = computed(() => {
 
 
               <td>
-
-                <button class="directory-view-button">
-
-                  <Eye
-                    :size="15"
-                  />
-
+                <RouterLink :to="`/admin/volunteers/${volunteer.id}`" class="directory-view-button" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                  <Eye :size="15" />
                   View Profile
-
-                </button>
-
+                </RouterLink>
               </td>
 
             </tr>

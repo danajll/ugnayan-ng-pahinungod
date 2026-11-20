@@ -10,6 +10,7 @@ import AdminEvents from '../views/admin/AdminEvents.vue';
 import AdminVolunteers from '../views/admin/AdminVolunteers.vue';
 import AdminProgress from '../views/admin/AdminProgress.vue';
 import AdminSettings from '../views/admin/AdminSettings.vue';
+import AdminVolunteerProfile from '../views/admin/AdminVolunteerProfile.vue';
 
 import UserLayout from '../views/user/UserLayout.vue';
 import UserHome from '../views/user/UserHome.vue';
@@ -51,7 +52,11 @@ const routes = [
     component: AdminLayout,
 
     children: [
-
+      {
+        path: 'volunteers/:id',
+        component: AdminVolunteerProfile
+      },
+      
       {
         path: '',
         component: AdminDashboard
