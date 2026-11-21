@@ -8,6 +8,14 @@ const volunteers = ref([]) // Start empty
 const loading = ref(true)
 const error = ref(null)
 
+const formatDateTime = (iso) => {
+  if (!iso) return 'N/A'
+  return new Date(iso).toLocaleString('en-PH', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
 // Fetch real data on mount
 onMounted(async () => {
   try {
@@ -19,8 +27,8 @@ onMounted(async () => {
       name: `${v.first_name} ${v.last_name}`,
       affiliation: v.affiliation_type,
       degree: v.degree || 'N/A',
-      timeIn: 'N/A',
-      timeOut: 'N/A'
+      status: v.status, // <-- 'pending' | 'active' | 'inactive' | 'suspended'
+      timeIn: formatDateTime(v.onboarding_completed_at),
     }))
   } catch (err) {
     error.value = err.response?.data?.detail || 'Failed to load volunteers.'
@@ -109,7 +117,7 @@ const filteredVolunteers = computed(() => {
               </th>
 
               <th>
-                TIME OUT
+                STATUS
               </th>
 
               <th>
@@ -168,7 +176,12 @@ const filteredVolunteers = computed(() => {
 
 
               <td>
-                {{ volunteer.timeOut }}
+                <span
+                  class="directory-status"
+                  :class="`status-${volunteer.status}`"
+                >
+                  {{ volunteer.status === 'active' ? 'Onboarded' : 'Pending Verification' }}
+                </span>
               </td>
 
 

@@ -13,6 +13,43 @@ const error = ref(null)
 const volunteer = ref(null)
 const profile = ref({ contact: {}, address: {}, emergency: {}, background: {} })
 
+const isVerified = computed(() => volunteer.value?.status === 'active')
+
+const handleApprove = async () => {
+  if (!volunteer.value?.id) return
+  try {
+    await volunteerService.approve(volunteer.value.id)
+    const [volRes, profRes] = await Promise.all([
+      volunteerService.get(volunteer.value.id),
+      volunteerService.getProfile(volunteer.value.id)
+    ])
+    volunteer.value = volRes.data
+    profile.value = profRes.data
+    alert('Volunteer verified and onboarded.')
+  } catch (err) {
+    alert('Failed to verify volunteer: ' + (err.response?.data?.detail || err.message))
+    console.error(err)
+  }
+}
+
+const handleReject = async () => {
+  if (!volunteer.value?.id) return
+  if (!confirm('Reject this volunteer application?')) return
+  try {
+    await volunteerService.reject(volunteer.value.id)
+    const [volRes, profRes] = await Promise.all([
+      volunteerService.get(volunteer.value.id),
+      volunteerService.getProfile(volunteer.value.id)
+    ])
+    volunteer.value = volRes.data
+    profile.value = profRes.data
+    alert('Volunteer application rejected.')
+  } catch (err) {
+    alert('Failed to reject volunteer: ' + (err.response?.data?.detail || err.message))
+    console.error(err)
+  }
+}
+
 onMounted(async () => {
   try {
     const [volRes, profRes] = await Promise.all([
@@ -79,6 +116,22 @@ const formatDate = (iso) => {
               <span v-if="volunteer.degree"> · {{ volunteer.degree }}</span>
             </p>
           </div>
+        </div>
+
+        <!-- Verification actions (only for unverified accounts) -->
+        <div v-if="!isVerified" style="display: flex; gap: 10px; margin-bottom: 24px;">
+          <button
+            @click="handleApprove"
+            style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border: 0; border-radius: 8px; background: #16a34a; color: white; font-weight: 700; cursor: pointer;"
+          >
+            <ShieldAlert :size="16" /> Verify & Approve
+          </button>
+          <button
+            @click="handleReject"
+            style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border: 0; border-radius: 8px; background: #dc2626; color: white; font-weight: 700; cursor: pointer;"
+          >
+            Reject Application
+          </button>
         </div>
 
         <!-- Two Column Layout -->

@@ -16,6 +16,7 @@ class AffiliationType(models.TextChoices):
 
 
 class VolunteerStatus(models.TextChoices):
+    PENDING = "pending", "Pending Verification"
     ACTIVE = "active", "Active"
     INACTIVE = "inactive", "Inactive"
     SUSPENDED = "suspended", "Suspended"

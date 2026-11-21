@@ -33,6 +33,7 @@ from .models import (
     VolunteerBadge,
     VolunteerContact,
     VolunteerMeta,
+    VolunteerStatus,
 )
 from .serializers import (
     BadgeSerializer,
@@ -233,6 +234,26 @@ def volunteer_detail(request, pk):
 def admin_volunteer_profile(request, pk):
     volunteer = get_object_or_404(Volunteer, pk=pk)
     return Response(_serialize_profile(volunteer))
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAdminUser])
+def admin_volunteer_approve(request, pk):
+    volunteer = get_object_or_404(Volunteer, pk=pk)
+    volunteer.status = VolunteerStatus.ACTIVE
+    volunteer.is_profile_complete = True
+    volunteer.save(update_fields=["status", "is_profile_complete"])
+    return Response({"detail": "Volunteer verified and onboarded.", "status": volunteer.status})
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAdminUser])
+def admin_volunteer_reject(request, pk):
+    volunteer = get_object_or_404(Volunteer, pk=pk)
+    user = volunteer.user
+    # Deleting the User cascades to Volunteer and all related profile tables (on_delete=CASCADE).
+    user.delete()
+    return Response({"detail": "Volunteer application rejected and all data removed."})
 
 # ─────────────────────────────────────────────────────────────
 # EVENT PARTICIPATION
@@ -524,6 +545,7 @@ def complete_onboarding(request):
     volunteer.affiliation_type = data["affiliation_type"]
     volunteer.is_profile_complete = True
     volunteer.onboarding_completed_at = timezone.now()
+    volunteer.status = VolunteerStatus.PENDING  # awaits admin verification
     volunteer.save()
 
     # Programs
@@ -576,9 +598,10 @@ def complete_onboarding(request):
     )
 
     return Response({
-        "detail": "Onboarding complete.",
+        "detail": "Onboarding complete. Your application is pending admin verification.",
         "volunteer_id": volunteer.id,
         "is_profile_complete": True,
+        "status": VolunteerStatus.PENDING,
     })
 
 @api_view(["POST"])
@@ -646,7 +669,16 @@ def google_login(request):
             "permanent_address": "",
             "affiliation_type": "student",    # overwritten on onboarding
             "is_profile_complete": False,
+            "status": VolunteerStatus.PENDING,
         },
+    )
+
+    # If an existing volunteer already finished onboarding but is still pending,
+    # tell the frontend to show the "already applied" message.
+    already_applied = (
+        not vol_created
+        and volunteer.is_profile_complete
+        and volunteer.status == VolunteerStatus.PENDING
     )
 
     token_obj, _ = Token.objects.get_or_create(user=user)
@@ -658,8 +690,10 @@ def google_login(request):
             "email": user.email,
             "volunteer_id": volunteer.id,
             "is_profile_complete": volunteer.is_profile_complete,
-            "is_staff": user.is_staff,              
-            "is_superuser": user.is_superuser,     
+            "status": volunteer.status,
+            "already_applied": already_applied,
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
             "created": created,
         },
         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,

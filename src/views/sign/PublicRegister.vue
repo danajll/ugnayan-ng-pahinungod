@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { meService } from '../../api/me'
 import { volunteerService } from '../../api/volunteers'
@@ -8,12 +8,13 @@ const router = useRouter()
 const currentStep = ref(1)
 const submitting = ref(false)
 const submitError = ref(null)
+const submitMessage = ref(null)
 
 // Form Data
 const formData = reactive({
   // Step 1
   lastName: '', firstName: '', middleName: '', nickName: '',
-  age: '', sex: '', birthDate: '', ipAffiliation: '',
+  sex: '', birthDate: '', ipAffiliation: '',
   mobile: '', facebookLink: '', hobbies: '', affiliatedOrgs: '',
   permanentAddress: '', upAddress: '',
 
@@ -28,6 +29,16 @@ const formData = reactive({
   // Step 4
   applicationStatus: '', tagapagUgnay: '', otherVolOrg: '',
   otherVolOrgName: '', whereHeard: '', agreedConsent: false,
+})
+
+const calculatedAge = computed(() => {
+  if (!formData.birthDate) return null
+  const today = new Date()
+  const birth = new Date(formData.birthDate)
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
 })
 
 // ─────────────────────────────────────────────────────────────
@@ -95,13 +106,10 @@ const handleNextOrSubmit = async () => {
 
   try {
     const payload = buildOnboardingPayload()
-    await volunteerService.onboard(payload)
+    const { data } = await volunteerService.onboard(payload)
 
-    // Re-fetch /api/me/ to confirm is_profile_complete is now true
-    // (optional but useful for debugging)
-    // const { data: me } = await meService.get()
-
-    router.push('/user')
+    submitMessage.value = data.detail || 'Thank you for applying. Please check back in a few hours as an admin reviews your application.'
+    submitError.value = null
   } catch (err) {
     const detail = err.response?.data
     if (detail && typeof detail === 'object') {
@@ -282,7 +290,7 @@ const mapApplicationStatus = (label) => {
         </div>
 
         <!-- Multi-Step Form -->
-        <form @submit.prevent="handleNextOrSubmit" class="step-form">
+        <form v-if="!submitted" @submit.prevent="handleNextOrSubmit" class="step-form">
           <div
             v-if="submitError"
             style="background:#fee2e2; color:#991b1b; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:0.85rem;"
@@ -319,10 +327,6 @@ const mapApplicationStatus = (label) => {
             </div>
 
             <div class="form-row three-col-custom">
-              <div class="form-group col-age">
-                <label>AGE <span class="required">*</span></label>
-                <input v-model="formData.age" type="number" placeholder="e.g. 20" required />
-              </div>
               <div class="form-group col-sex">
                 <label>SEX ASSIGNED AT BIRTH <span class="required">*</span></label>
                 <select v-model="formData.sex" required>
@@ -335,6 +339,9 @@ const mapApplicationStatus = (label) => {
               <div class="form-group col-dob">
                 <label>BIRTHDATE <span class="required">*</span></label>
                 <input v-model="formData.birthDate" type="date" required />
+                <div v-if="calculatedAge !== null" style="margin-top:6px; font-size:0.85rem; color:#6b7280;">
+                  Age: {{ calculatedAge }} years old
+                </div>
               </div>
             </div>
 
@@ -690,6 +697,12 @@ const mapApplicationStatus = (label) => {
             </button>
           </div>
         </form>
+
+        <div v-if="submitted" class="submitted-view" style="text-align:center; padding: 40px 20px; background:#fff; border-radius:12px; border:1px solid #e5e7eb;">
+          <h2 style="margin:0 0 12px 0; color:#166534;">Application Submitted</h2>
+          <p style="margin:0 0 16px 0; color:#4b5563;">{{ submitMessage }}</p>
+          <p style="margin:0; color:#6b7280; font-size:0.9rem;">You may close this page or <router-link to="/login" style="color:#2563eb; text-decoration:none; font-weight:600;">sign in again</router-link> to check status.</p>
+        </div>
 
         <div class="form-footer">
           Already registered? <router-link to="/login">Sign in here</router-link>

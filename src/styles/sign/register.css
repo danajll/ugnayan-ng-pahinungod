@@ -122,9 +122,8 @@
   gap: 1rem;
 }
 
-.col-age { flex: 1; }
-.col-sex { flex: 1.5; }
-.col-dob { flex: 1.5; }
+.col-sex { flex: 1; }
+.col-dob { flex: 1; }
 
 /* Radio & Checkbox Cards / Options */
 .option-grid-step2,

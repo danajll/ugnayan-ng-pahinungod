@@ -33,6 +33,8 @@ urlpatterns = [
     path("volunteers/", views.volunteer_list, name="volunteer-list"),
     path("volunteers/<int:pk>/", views.volunteer_detail, name="volunteer-detail"),
     path("volunteers/<int:pk>/profile/", views.admin_volunteer_profile, name="admin-volunteer-profile"),
+    path("volunteers/<int:pk>/approve/", views.admin_volunteer_approve, name="admin-volunteer-approve"),
+    path("volunteers/<int:pk>/reject/", views.admin_volunteer_reject, name="admin-volunteer-reject"),
 
     # Participations
     path("me/participations/", views.my_participations, name="my-participations"),

@@ -8,4 +8,6 @@ export const volunteerService = {
   updateProfile: (data) => api.patch('/volunteers/me/profile/', data),
   onboard:       (data) => api.patch('/volunteers/me/onboarding/', data),
   getProfile: (id)    => api.get(`/volunteers/${id}/profile/`),
+  approve: (id)    => api.patch(`/volunteers/${id}/approve/`),
+  reject:  (id)    => api.patch(`/volunteers/${id}/reject/`),
 }

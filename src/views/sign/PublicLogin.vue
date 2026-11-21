@@ -30,6 +30,9 @@ const handleCredentialResponse = async (response) => {
     if (!data.is_profile_complete) {
       // New user — must finish onboarding first
       router.push({ path: '/register', query: { from: 'google' } })
+    } else if (data.already_applied) {
+      // Already applied but still pending admin verification
+      error.value = 'An application for this Google account has already been sent. Please wait for confirmation.'
     } else if (data.is_staff || data.is_superuser) {
       // Admin / staff — straight to the admin panel
       router.push('/admin')
