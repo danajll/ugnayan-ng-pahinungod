@@ -1,12 +1,18 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { MapPin, GraduationCap, ArrowRight } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { meService } from '../../api/me'
 import { volunteerService } from '../../api/volunteers'
 import { participationService } from '../../api/participations'
 
 function exportRecord() {
   window.print()
+}
+
+function handleLogout() {
+  localStorage.removeItem('auth_token')
+  router.push('/login')
 }
 
 // Badges are still hardcoded (partner's task)
@@ -20,6 +26,7 @@ const badges = [
 ];
 
 const loading = ref(true)
+const router = useRouter()
 const user = ref(null)
 const volunteer = ref(null)
 const emergency = ref(null)
@@ -108,6 +115,9 @@ const formatDate = (iso) => {
         </RouterLink>
         <button class="user-button user-button-light" type="button" @click="exportRecord">
           Export Record
+        </button>
+        <button class="user-button user-button-light" type="button" @click="handleLogout">
+          Logout
         </button>
       </div>
     </div>
