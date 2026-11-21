@@ -9,11 +9,20 @@ import { eventService } from '../../api/events'
 
 // ─── UI state ───
 const search = ref('')
-const region = ref('Davao Region')
+const region = ref('All Regions')
 const regionOpen = ref(false)
 const status = ref('All')
 const category = ref('ALL MISSIONS')
 
+const cities = [
+  'Bayugan City', 'Bislig City', 'Cagayan de Oro City', 'Cotabato City',
+  'Dapitan City', 'Davao City', 'Digos City', 'Dipolog City', 'Gingoog City',
+  'Iligan City', 'Isabela City', 'Kidapawan City', 'Koronadal City',
+  'Lamitan City', 'Mati City', 'Malaybalay City', 'Marawi City',
+  'Oroquieta City', 'Ozamiz City', 'Pagadian City', 'Panabo City',
+  'Samal City', 'Surigao City', 'Tacurong City', 'Tagum City',
+  'Tangub City', 'Tandag City', 'Valencia City', 'Zamboanga City'
+]
 const regions = [
   'All Regions', 'National Capital Region (NCR)', 'Cordillera Administrative Region (CAR)',
   'Ilocos Region (Region I)', 'Cagayan Valley (Region II)', 'Central Luzon (Region III)',
@@ -48,7 +57,8 @@ const mapEvent = (e) => ({
   start_datetime: e.start_datetime,
   end_datetime: e.end_datetime,
   location: e.location || 'Location to be announced',
-  region: 'Davao Region', // not on the model yet
+  region: e.city || 'Davao Region',
+  city: e.city || 'Davao City',
   description: e.description || '',
   image: e.cover_image || '/images/programs/bloodletting.jpg',
   status: e.status,
@@ -113,7 +123,7 @@ const emptyEvent = () => ({
   description: '',
   startDate: '',
   endDate: '',
-  region: 'Davao Region',
+  city: 'Davao City',
   venue: '',
   quota: 40,
   accreditedHours: 24,
@@ -155,7 +165,7 @@ const openEditModal = (event) => {
     description: event.description,
     startDate: toDateInput(event.start_datetime),
     endDate: toDateInput(event.end_datetime),
-    region: event.region,
+    city: event.city,
     venue: event.location,
     quota: event.quota,
     accreditedHours: 24,
@@ -191,6 +201,7 @@ const buildPayload = () => {
     name: newEvent.value.title || 'Untitled Mission',
     description: newEvent.value.description,
     location: newEvent.value.venue,
+    city: newEvent.value.city,
     category: newEvent.value.category,
     status: statusMap[newEvent.value.publicationState] || 'Drafts',
     quota: Number(newEvent.value.quota) || 0,
@@ -1365,7 +1376,7 @@ const deleteEvent = async () => {
 
                   <label>
 
-                    Administrative Region
+                    City
 
                   </label>
 
@@ -1383,7 +1394,7 @@ const deleteEvent = async () => {
 
                       v-model="
 
-                        newEvent.region
+                        newEvent.city
 
                       "
 
@@ -1393,15 +1404,8 @@ const deleteEvent = async () => {
 
                         v-for="
 
-                          item in regions.filter(
+                          item in cities
 
-                            (item) =>
-
-                              item !==
-
-                              'All Regions'
-
-                          )
 
                         "
 
