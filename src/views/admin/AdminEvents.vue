@@ -105,12 +105,26 @@ const filteredEvents = computed(() => {
   })
 })
 
-const getStatusClass = (event) => {
-  if (event.displayStatus === 'COMPLETED') return 'completed'
-  if (event.displayStatus === 'ONGOING') return 'ongoing'
-  if (event.displayStatus === 'SCHEDULED') return 'scheduled'
-  if (event.displayStatus === 'DRAFT') return 'draft'
-  return 'recruiting'
+const getEventStatus = (event) => {
+  const now = new Date()
+  const end = event.end_datetime ? new Date(event.end_datetime) : null
+  const slotsLeft = Math.max((event.quota || 0) - (event.registered || 0), 0)
+
+  // Concluded
+  if (end && end <= now) {
+    return { label: 'Concluded', class: 'concluded' }
+  }
+
+  // Closed (slots filled or less than 1 day left)
+  if (slotsLeft <= 0) {
+    return { label: 'Closed', class: 'closed' }
+  }
+  if (end && (end - now) / (1000 * 60 * 60 * 24) < 1) {
+    return { label: 'Closed', class: 'closed' }
+  }
+
+  // Recruiting
+  return { label: 'Recruiting', class: 'recruiting' }
 }
 
 // ─── Create / Edit modal ───
@@ -237,6 +251,63 @@ const saveNewEvent = async (publicationState) => {
   await saveEvent()
 }
 const saveEditedEvent = async () => { await saveEvent() }
+
+// ─── Manage modal ───
+const manageModalOpen = ref(false)
+const manageEvent = ref(null)
+const manageParticipants = ref([])
+const manageLoading = ref(false)
+
+const formatTimeRemaining = (iso) => {
+  if (!iso) return null
+  const end = new Date(iso)
+  const now = new Date()
+  const diffMs = end - now
+  if (diffMs <= 0) return null
+  const totalSecs = Math.floor(diffMs / 1000)
+  const days = Math.floor(totalSecs / 86400)
+  const hours = Math.floor((totalSecs % 86400) / 3600)
+  const minutes = Math.floor((totalSecs % 3600) / 60)
+  const parts = []
+  if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`)
+  if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`)
+  if (minutes > 0) parts.push(`${minutes} min`)
+  return parts.length ? parts.join(' ') : '< 1 min'
+}
+
+const eventStatusLabel = (e) => {
+  if (!e.end_datetime) return 'Scheduled'
+  const end = new Date(e.end_datetime)
+  const now = new Date()
+  const diffMs = end - now
+  const diffDays = diffMs / (1000 * 60 * 60 * 24)
+  if (diffMs <= 0) return 'Concluded'
+  if (diffDays < 2) return 'Happening Soon'
+  if (diffDays < 1) return 'Happening Now'
+  return 'Scheduled'
+}
+
+const openManageModal = async (event) => {
+  manageEvent.value = event
+  manageParticipants.value = []
+  manageLoading.value = true
+  manageModalOpen.value = true
+  try {
+    const { data } = await eventService.participants(event.id)
+    manageParticipants.value = data
+  } catch (err) {
+    console.error('Failed to load participants:', err)
+    manageParticipants.value = []
+  } finally {
+    manageLoading.value = false
+  }
+}
+
+const closeManageModal = () => {
+  manageModalOpen.value = false
+  manageEvent.value = null
+  manageParticipants.value = []
+}
 
 // ─── Delete modal ───
 const deleteModalOpen = ref(false)
@@ -492,17 +563,13 @@ const deleteEvent = async () => {
 
               class="event-status"
 
-              :class="
-
-                getStatusClass(event)
-
-              "
+              :class="getEventStatus(event).class"
 
             >
 
               <span></span>
 
-              {{ event.displayStatus }}
+              {{ getEventStatus(event).label }}
 
             </span>
 
@@ -793,6 +860,8 @@ const deleteEvent = async () => {
                     event.quota
 
                 }"
+
+                @click="openManageModal(event)"
 
               >
 
@@ -2071,7 +2140,187 @@ const deleteEvent = async () => {
 
         </div>
 
-      </div>      <!-- delete event modal -->
+      </div>      <!-- manage event modal -->
+
+      <div
+
+        v-if="manageModalOpen"
+
+        class="event-modal-backdrop"
+
+        @click.self="closeManageModal"
+
+      >
+
+        <div class="event-manage-modal">
+
+          <!-- header  -->
+
+          <div class="event-modal-header">
+
+            <div class="event-modal-title">
+
+              <div class="event-modal-icon">
+
+                <UsersRound :size="20" />
+
+              </div>
+
+              <h2>{{ manageEvent?.name }}</h2>
+
+            </div>
+
+            <button
+
+              class="event-modal-close"
+
+              @click="closeManageModal"
+
+            >
+
+              <X :size="20" />
+
+            </button>
+
+          </div>
+
+          <!-- body  -->
+
+          <div class="event-modal-body">
+
+            <!-- event status & time remaining  -->
+
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px; padding:12px 16px; background:#f5f2f2; border-radius:8px;">
+
+              <span
+
+                style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:99px; font-size:0.75rem; font-weight:700; text-transform:uppercase;"
+
+                :style="{
+
+                  background: manageEvent?.status === 'Published' ? '#dcfce7' : '#fef3c7',
+
+                  color: manageEvent?.status === 'Published' ? '#166534' : '#92400e'
+
+                }"
+
+              >
+
+                {{ eventStatusLabel(manageEvent) }}
+
+              </span>
+
+              <span v-if="manageEvent?.end_datetime" style="font-size:0.9rem; color:#6b7280;">
+
+                Time remaining: {{ formatTimeRemaining(manageEvent.end_datetime) || 'Concluded' }}
+
+              </span>
+
+            </div>
+
+            <!-- participants list  -->
+
+            <div style="margin-bottom:16px;">
+
+              <div style="font-weight:700; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; color:#625b5c;">
+
+                Volunteers Signed Up ({{ manageParticipants.length }})
+
+              </div>
+
+              <div v-if="manageLoading" style="padding:20px; text-align:center; color:#6b7280;">
+
+                Loading participants…
+
+              </div>
+
+              <div v-else-if="manageParticipants.length === 0" style="padding:20px; text-align:center; color:#6b7280;">
+
+                No volunteers have signed up yet.
+
+              </div>
+
+              <table v-else style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+
+                <thead>
+
+                  <tr style="text-align:left;">
+
+                    <th style="padding:8px 0; color:#625b5c; font-weight:600; border-bottom:1px solid #e5dfdf;">Volunteer</th>
+
+                    <th style="padding:8px 0; color:#625b5c; font-weight:600; border-bottom:1px solid #e5dfdf;">Status</th>
+
+                    <th style="padding:8px 0; color:#625b5c; font-weight:600; border-bottom:1px solid #e5dfdf;">Registered</th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  <tr
+
+                    v-for="p in manageParticipants"
+
+                    :key="p.id"
+
+                    style="border-bottom:1px solid #f0eded;"
+
+                  >
+
+                    <td style="padding:10px 0;">{{ p.volunteer_name }}</td>
+
+                    <td style="padding:10px 0;">
+
+                      <span
+
+                        :style="{
+
+                          background: p.status === 'attended' ? '#dcfce7' : p.status === 'registered' ? '#fef3c7' : '#e5e7eb',
+
+                          color: p.status === 'attended' ? '#166534' : p.status === 'registered' ? '#92400e' : '#6b7280',
+
+                          padding: '2px 8px',
+
+                          borderRadius: '99px',
+
+                          fontSize: '0.75rem',
+
+                          fontWeight: '700',
+
+                          textTransform: 'uppercase',
+
+                          display: 'inline-block'
+
+                        }"
+
+                      >
+
+                        {{ p.status }}
+
+                      </span>
+
+                    </td>
+
+                    <td style="padding:10px 0; color:#6b7280; font-size:0.85rem;">
+
+                      {{ p.registered_at ? new Date(p.registered_at).toLocaleString('en-PH', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'N/A' }}
+
+                    </td>
+
+                  </tr>
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
 
       <div
 

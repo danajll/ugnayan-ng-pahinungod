@@ -183,6 +183,17 @@ def event_detail(request, pk):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def event_participants(request, pk):
+    event = get_object_or_404(Event, pk=pk)
+    participations = (
+        event.participations.select_related("volunteer")
+        .order_by("-registered_at")
+    )
+    return Response(EventParticipationSerializer(participations, many=True).data)
+
+
 # ─────────────────────────────────────────────────────────────
 # VOLUNTEERS
 # ─────────────────────────────────────────────────────────────
@@ -269,6 +280,20 @@ def join_event(request, pk):
         return Response(
             {"detail": "You do not have a volunteer profile."},
             status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Block joining if the event has concluded or is less than a day away.
+    now = timezone.now()
+    if event.end_datetime <= now:
+        return Response(
+            {"detail": "This event has already concluded and is no longer open for sign-ups."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    hours_left = (event.end_datetime - now).total_seconds() / 3600
+    if hours_left < 24:
+        return Response(
+            {"detail": "This event starts in less than 24 hours and is no longer open for sign-ups."},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Check for an existing participation (any status)

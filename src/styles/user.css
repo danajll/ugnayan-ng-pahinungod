@@ -545,6 +545,25 @@
   font-weight: 700;
 }
 
+.user-site .user-event-status {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.user-site .user-event-status.recruiting {
+  background: #e1f3ff;
+  color: #1179b9;
+}
+
+.user-site .user-event-status.closed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .user-site .category-education {
   background: #fff0d9;
   color: #98601b;

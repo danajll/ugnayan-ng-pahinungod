@@ -1,12 +1,21 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
-import { Search, ChevronLeft, ChevronRight, Eye } from 'lucide-vue-next'
+import { Search, ChevronLeft, ChevronRight, Eye, Filter } from 'lucide-vue-next'
 import { volunteerService } from '../../api/volunteers'
 
 const search = ref('')
+const affiliationFilter = ref('all')
 const volunteers = ref([]) // Start empty
 const loading = ref(true)
 const error = ref(null)
+
+const affiliationOptions = [
+  { value: 'all', label: 'All Affiliations' },
+  { value: 'student', label: 'Student' },
+  { value: 'faculty', label: 'Faculty' },
+  { value: 'staff', label: 'Staff' },
+  { value: 'alumni', label: 'Alumni' },
+]
 
 const formatDateTime = (iso) => {
   if (!iso) return 'N/A'
@@ -39,12 +48,13 @@ onMounted(async () => {
 
 const filteredVolunteers = computed(() => {
   const value = search.value.toLowerCase()
+  const aff = affiliationFilter.value
   return volunteers.value.filter((volunteer) => {
-    return (
+    const matchesSearch =
       volunteer.name.toLowerCase().includes(value) ||
-      volunteer.id.toLowerCase().includes(value) ||
-      volunteer.degree.toLowerCase().includes(value)
-    )
+      volunteer.identifier.toLowerCase().includes(value)
+    const matchesAffiliation = aff === 'all' || volunteer.affiliation === aff
+    return matchesSearch && matchesAffiliation
   })
 })
 </script>
@@ -74,6 +84,23 @@ const filteredVolunteers = computed(() => {
 
 
         <div class="volunteers-search">
+
+          <Filter
+            :size="17"
+          />
+
+          <select
+            v-model="affiliationFilter"
+            class="affiliation-filter"
+          >
+            <option
+              v-for="opt in affiliationOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >
+              {{ opt.label }}
+            </option>
+          </select>
 
           <Search
             :size="17"

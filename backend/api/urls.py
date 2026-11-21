@@ -25,6 +25,7 @@ urlpatterns = [
     # Events CRUD
     path("events/", views.event_list_create, name="event-list-create"),
     path("events/<int:pk>/", views.event_detail, name="event-detail"),
+    path("events/<int:pk>/participants/", views.event_participants, name="event-participants"),
     path("events/<int:pk>/join/", views.join_event, name="event-join"),
 
     # Volunteers

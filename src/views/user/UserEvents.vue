@@ -72,6 +72,23 @@ const slotsLeft = (event) => {
   return Math.max(quota - taken, 0)
 }
 
+const isJoinable = (event) => {
+  if (!event.end_datetime) return false
+  const now = new Date()
+  const end = new Date(event.end_datetime)
+  if (end <= now) return false
+  const hoursLeft = (end - now) / (1000 * 60 * 60)
+  return hoursLeft >= 24
+}
+
+const getEventStatus = (event) => {
+  const slotsLeftVal = slotsLeft(event)
+  if (slotsLeftVal <= 0 || !isJoinable(event)) {
+    return { label: 'Closed', class: 'closed' }
+  }
+  return { label: 'Recruiting', class: 'recruiting' }
+}
+
 const isJoined = (eventId) => activeJoinMap.value.has(eventId)
 
 const formatDate = (iso) => {
@@ -96,6 +113,9 @@ const filteredEvents = computed(() => {
       region.value === 'All locations' ||
       (event.location || '').toLowerCase().includes(region.value.toLowerCase())
 
+    // Exclude concluded events from the volunteer portal
+    const matchesNotConcluded = new Date(event.end_datetime) > new Date()
+
     // Date filter
     let matchesDate = true
     if (dateRange.value === 'Upcoming') {
@@ -112,7 +132,7 @@ const filteredEvents = computed(() => {
       matchesDate = diff >= 0 && diff <= 7
     }
 
-    return matchesSearch && matchesCategory && matchesRegion && matchesDate
+    return matchesSearch && matchesCategory && matchesRegion && matchesNotConcluded && matchesDate
   })
 })
 
@@ -238,6 +258,13 @@ async function cancelSignup(eventId) {
             {{ categoryLabel(event.category) }}
           </span>
 
+          <span
+            class="user-event-status"
+            :class="getEventStatus(event).class"
+          >
+            {{ getEventStatus(event).label }}
+          </span>
+
           <p class="user-event-meta">
             <CalendarDays :size="13" />
             {{ formatDate(event.start_datetime) }}
@@ -271,10 +298,10 @@ async function cancelSignup(eventId) {
             v-if="!isJoined(event.id)"
             class="user-button user-button-primary"
             type="button"
-            :disabled="busyEventId === event.id || slotsLeft(event) <= 0"
+            :disabled="busyEventId === event.id || slotsLeft(event) <= 0 || !isJoinable(event)"
             @click="joinEvent(event.id)"
           >
-            {{ busyEventId === event.id ? 'Joining…' : (slotsLeft(event) <= 0 ? 'Fully Booked' : 'Be a Volunteer') }}
+            {{ busyEventId === event.id ? 'Joining…' : (slotsLeft(event) <= 0 ? 'Fully Booked' : !isJoinable(event) ? 'Sign-ups Closed' : 'Be a Volunteer') }}
           </button>
 
           <button

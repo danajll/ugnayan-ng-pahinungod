@@ -32,7 +32,8 @@
 
 .volunteers-search {
 
-  width: 330px;
+  width: 100%;
+  max-width: 520px;
   height: 42px;
 
   display: flex;
@@ -42,6 +43,20 @@
   padding: 0 12px;
 
   border-bottom: 1px solid #eee9e9;
+
+}
+
+
+.volunteers-search select.affiliation-filter {
+
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 14px;
+  color: var(--admin-text, #4f494a);
+  padding: 0 6px;
+  cursor: pointer;
 
 }
 
