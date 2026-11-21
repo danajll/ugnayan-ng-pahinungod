@@ -1,125 +1,53 @@
-# Ugnayan ng Pahinungod
+# Ugnayan ng Pahinungod — Frontend
 
-A web-based project developed using **Vue 3** and **Vite**.
+Vue 3 + Vite frontend for the volunteer management app. Proxies `/api` to the Django backend at `http://127.0.0.1:8000`.
 
 ## Tech Stack
+- Vue 3 (`<script setup>`)
+- Vite 5
+- Vue Router 4
+- Axios
 
-* Vue 3
-* Vite
-* JavaScript
+## Prerequisites
+- Node.js 18+ and npm
 
-## Getting Started
-
-### Prerequisites
-
-* Node.js
-* npm
-
-### Installation
-
-Clone the repository and navigate to the project directory:
-
-```bash
-git clone https://github.com/danajll/ugnayan-ng-pahinungod.git
-cd ugnayan-ng-pahinungod
-```
-
-Install the dependencies:
-
+## Setup
 ```bash
 npm install
+cp .env.example .env   # set VITE_GOOGLE_CLIENT_ID
 ```
 
-Start the development server:
-
+## Run
 ```bash
-npm run dev
+npm run dev            # Vite dev server on http://localhost:5173
+npm run build          # production build
+npm run preview        # preview production build
 ```
 
-## Git Branching Strategy
+## Environment Variables (root `.env`)
+| Variable | Description |
+|---|---|
+| `VITE_GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID (used by Google Sign-In) |
 
-This project follows a branch-based development workflow to keep production-ready code separate from ongoing development and testing.
+## Work Flow
+1. Start the Django backend first (`backend/`, port 8000) — see `backend/README.md`.
+2. Start this dev server on port 5173.
+3. Vite proxies `/api` requests to the backend; no CORS issues in dev.
+4. Sign in with a `@up.edu.ph` Google account. New users are routed to onboarding; returning users go to the dashboard.
+5. Volunteers browse events/programs, join events, and manage their profile. Admins manage volunteers/events.
 
-### Main Branches
-
-| Branch      | Purpose                                                                           |
-| ----------- | --------------------------------------------------------------------------------- |
-| `main`      | Stable, production-ready version of the project.                                  |
-| `staging`   | Integration and testing branch for completed features before merging into `main`. |
-| `feature/*` | Individual features or development tasks.                                         |
-
-### Branch Naming Conventions
-
-Use the following prefixes when creating branches:
-
-| Prefix   | Purpose                                              | Example                    |
-| -------- | ---------------------------------------------------- | -------------------------- |
-| `feat/`  | Developing a new feature                             | `feat/user-authentication` |
-| `fix/`   | Fixing bugs or issues                                | `fix/login-validation`     |
-| `chore/` | Maintenance, configuration, or documentation updates | `chore/update-readme`      |
-
-Use lowercase letters and hyphens to separate words in branch names.
-
-### Development Workflow
-
-The general workflow is:
-
-```text
-feature/*  →  staging  →  main
+## Project Structure
+```
+src/
+  api/       # Axios API clients (auth, events, volunteers, ...)
+  router/    # Vue Router routes
+  views/     # Pages: sign/, user/, admin/
+  styles/    # Shared CSS
+  main.js
+  App.vue
 ```
 
-1. **Create a feature branch** from `staging` for a specific task.
-2. **Develop and commit changes** within your feature branch.
-3. **Open a Pull Request (PR)** targeting `staging` once the changes are ready.
-4. **Review, integrate, and test** the changes in `staging`.
-5. **Merge `staging` into `main`** when the integrated changes are stable and ready for release.
-
-### Example Commands
-
-Create a new feature branch from `staging`:
-
-```bash
-git switch staging
-git pull origin staging
-git switch -c feat/your-feature-name
-```
-
-After making changes:
-
-```bash
-git add .
-git commit -m "feat: add your feature"
-git push -u origin feat/your-feature-name
-```
-
-Open a Pull Request on GitHub targeting `staging`.
-
-### Commit Message Conventions
-
-Use descriptive commit messages with the following prefixes:
-
-| Prefix      | Description                                       |
-| ----------- | ------------------------------------------------- |
-| `feat:`     | New feature                                       |
-| `fix:`      | Bug fix                                           |
-| `chore:`    | Maintenance or configuration                      |
-| `docs:`     | Documentation changes                             |
-| `refactor:` | Code restructuring without changing functionality |
-| `style:`    | Formatting or styling changes                     |
-
-Examples:
-
-```text
-feat: add user registration
-fix: resolve login validation error
-chore: update project dependencies
-docs: update README with branching workflow
-```
-
-## Important Notes
-
-* Do not commit `node_modules/` or environment files containing secrets.
-* Ensure `.gitignore` is properly configured before committing.
-* Avoid committing directly to `main` for ordinary feature development.
-* Keep your local branches updated with their respective remote branches before starting new work.
-* Use Pull Requests to review changes before merging them into shared branches.
+## Auth Quirks
+- Token auth: header `Authorization: Token <token>`, stored client-side after login.
+- Do NOT send `Authorization` on public endpoints (`/api/register/`, `/api/login/`, `/api/auth/google/`).
+- Only `@up.edu.ph` Google accounts are allowed.

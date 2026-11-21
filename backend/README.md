@@ -1,9 +1,11 @@
-# UGNAYAN NG PAHINUNGOD — BACKEND
+# Ugnayan ng Pahinungod — Backend & Database
 
 ---
 
 ## Tech Stack
-Django REST Framework 6.x + Python 3.x + Supabase (PostgreSQL)
+- Django REST Framework 6.x 
+- Python 3.x 
+- Supabase (PostgreSQL)
 
 ---
 
@@ -22,10 +24,11 @@ python manage.py runserver
 
 
 ### Running the Server
-'''bash
+```bash
 cd backend
 python -m venv venv
 .\venv\Scripts\Activate.ps1
+```
 
 
 ### Environment Variables (.env)
@@ -41,6 +44,17 @@ python -m venv venv
 | `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 Client Secret                       |
 
 Note: Make sure to ask backend devs to fill this up
+---
+
+## Work Flow
+1. Create venv, install deps, copy `.env`, fill secrets (ask backend lead).
+2. `python manage.py migrate` then `python manage.py seed_lookups` (programs/subjects).
+3. `python manage.py runserver` on port 8000.
+4. Frontend (port 5173) proxies `/api` here.
+5. Google sign-in: frontend posts ID token to `/api/auth/google/`; backend verifies `@up.edu.ph`, creates User+Volunteer, returns token.
+6. New volunteers complete onboarding via `/api/volunteers/me/onboarding/`; `is_profile_complete` drives routing.
+7. Volunteers browse/join events; admins manage volunteers and events.
+
 ---
 
 # API Guide
