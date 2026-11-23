@@ -9,7 +9,7 @@ import { eventService } from '../../api/events'
 
 // ─── UI state ───
 const search = ref('')
-const region = ref('All Regions')
+const region = ref('All Locations')
 const regionOpen = ref(false)
 const status = ref('All')
 const category = ref('ALL MISSIONS')
@@ -23,16 +23,8 @@ const cities = [
   'Samal City', 'Surigao City', 'Tacurong City', 'Tagum City',
   'Tangub City', 'Tandag City', 'Valencia City', 'Zamboanga City'
 ]
-const regions = [
-  'All Regions', 'National Capital Region (NCR)', 'Cordillera Administrative Region (CAR)',
-  'Ilocos Region (Region I)', 'Cagayan Valley (Region II)', 'Central Luzon (Region III)',
-  'CALABARZON (Region IV-A)', 'MIMAROPA (Region IV-B)', 'Bicol Region (Region V)',
-  'Western Visayas (Region VI)', 'Negros Island Region (NIR)', 'Central Visayas (Region VII)',
-  'Eastern Visayas (Region VIII)', 'Zamboanga Peninsula (Region IX)',
-  'Northern Mindanao (Region X)', 'Davao Region (Region XI)',
-  'SOCCSKSARGEN (Region XII)', 'Caraga (Region XIII)',
-  'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)'
-]
+// Region filter now matches the event creation form: Mindanao cities only.
+const regions = ['All Locations', ...cities]
 const statuses = ['All', 'Published', 'Scheduled', 'Drafts']
 const categories = [
   'ALL MISSIONS', 'HEALTH', 'EDUCATION & LITERACY',
@@ -57,8 +49,8 @@ const mapEvent = (e) => ({
   start_datetime: e.start_datetime,
   end_datetime: e.end_datetime,
   location: e.location || 'Location to be announced',
-  region: e.city || 'Davao Region',
-  city: e.city || 'Davao City',
+  city: e.city || '',
+  region: e.city || '',
   description: e.description || '',
   image: e.cover_image || '/images/programs/bloodletting.jpg',
   status: e.status,
@@ -101,7 +93,7 @@ const filteredEvents = computed(() => {
       event.lead.toLowerCase().includes(s)
     const matchesStatus = status.value === 'All' || event.status === status.value
     const matchesCategory = category.value === 'ALL MISSIONS' || event.category === category.value
-    const matchesRegion = region.value === 'All Regions' || event.region === region.value
+    const matchesRegion = region.value === 'All Locations' || event.region === region.value
     return matchesSearch && matchesStatus && matchesCategory && matchesRegion
   })
 })
