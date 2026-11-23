@@ -54,10 +54,11 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = [
             "id", "name", "description", "start_datetime", "end_datetime",
-            "location", "city", "category", "status", "quota", "prerequisites",
-            "cover_image", "created_at", "registered_count", "capacity_left",
+            "location", "city", "category", "status", "live_status", "quota",
+            "prerequisites", "cover_image", "created_at",
+            "registered_count", "capacity_left",
         ]
-        read_only_fields = ["id", "created_at", "registered_count", "capacity_left"]
+        read_only_fields = ["id", "created_at", "registered_count", "capacity_left", "live_status"]
 
     def get_registered_count(self, obj):
         return obj.participations.filter(

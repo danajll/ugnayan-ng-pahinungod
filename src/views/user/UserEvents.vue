@@ -83,8 +83,15 @@ const isJoinable = (event) => {
 
 const getEventStatus = (event) => {
   const slotsLeftVal = slotsLeft(event)
+  const live = event.live_status || 'Scheduled'
+  if (live === 'Concluded') {
+    return { label: 'Concluded', class: 'closed' }
+  }
   if (slotsLeftVal <= 0 || !isJoinable(event)) {
     return { label: 'Closed', class: 'closed' }
+  }
+  if (live === 'Happening Soon' || live === 'Happening Now') {
+    return { label: live, class: 'recruiting' }
   }
   return { label: 'Recruiting', class: 'recruiting' }
 }
@@ -114,7 +121,7 @@ const filteredEvents = computed(() => {
       (event.location || '').toLowerCase().includes(region.value.toLowerCase())
 
     // Exclude concluded events from the volunteer portal
-    const matchesNotConcluded = new Date(event.end_datetime) > new Date()
+    const matchesNotConcluded = (event.live_status || 'Scheduled') !== 'Concluded'
 
     // Date filter
     let matchesDate = true

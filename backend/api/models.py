@@ -2,6 +2,7 @@ from datetime import date
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Sum
+from django.utils import timezone
 
 
 # ─────────────────────────────────────────────────────────────
@@ -39,6 +40,13 @@ class EventStatus(models.TextChoices):
     DRAFT = "Drafts", "Draft"
     SCHEDULED = "Scheduled", "Scheduled"
     PUBLISHED = "Published", "Published"
+
+
+class EventLiveStatus(models.TextChoices):
+    SCHEDULED = "Scheduled", "Scheduled"
+    HAPPENING_SOON = "Happening Soon", "Happening Soon"
+    HAPPENING_NOW = "Happening Now", "Happening Now"
+    CONCLUDED = "Concluded", "Concluded"
 
 class ParticipationStatus(models.TextChoices):
     REGISTERED = "registered", "Registered"
@@ -214,6 +222,12 @@ class Event(models.Model):
         choices=EventStatus.choices,
         default=EventStatus.DRAFT,
     )
+    live_status = models.CharField(
+        max_length=20,
+        choices=EventLiveStatus.choices,
+        default=EventLiveStatus.SCHEDULED,
+        help_text="Computed from start/end datetime; auto-updated on save.",
+    )
     quota = models.PositiveIntegerField(default=0)
     prerequisites = models.JSONField(default=list, blank=True)
     cover_image = models.ImageField(upload_to="event_covers/", null=True, blank=True)
@@ -222,6 +236,26 @@ class Event(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.start_datetime.date()})"
+
+    def compute_live_status(self):
+        """Return the live status (Scheduled / Happening Soon / Happening Now / Concluded)."""
+        now = timezone.now()
+        if not self.end_datetime:
+            return EventLiveStatus.SCHEDULED
+        if self.end_datetime <= now:
+            return EventLiveStatus.CONCLUDED
+        # Event is currently running
+        if self.start_datetime <= now <= self.end_datetime:
+            return EventLiveStatus.HAPPENING_NOW
+        # Time remaining until the event ends
+        diff_hours = (self.end_datetime - now).total_seconds() / 3600
+        if diff_hours < 24:
+            return EventLiveStatus.HAPPENING_SOON
+        return EventLiveStatus.SCHEDULED
+
+    def save(self, *args, **kwargs):
+        self.live_status = self.compute_live_status()
+        super().save(*args, **kwargs)
 
 
 class EventParticipation(models.Model):

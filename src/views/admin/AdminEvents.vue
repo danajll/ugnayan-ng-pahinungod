@@ -62,6 +62,7 @@ const mapEvent = (e) => ({
   description: e.description || '',
   image: e.cover_image || '/images/programs/bloodletting.jpg',
   status: e.status,
+  live_status: e.live_status || 'Scheduled',
   displayStatus:
     e.status === 'Published' ? 'RECRUITING'
     : e.status === 'Scheduled' ? 'SCHEDULED'
@@ -106,12 +107,11 @@ const filteredEvents = computed(() => {
 })
 
 const getEventStatus = (event) => {
-  const now = new Date()
-  const end = event.end_datetime ? new Date(event.end_datetime) : null
   const slotsLeft = Math.max((event.quota || 0) - (event.registered || 0), 0)
+  const live = event.live_status || 'Scheduled'
 
   // Concluded
-  if (end && end <= now) {
+  if (live === 'Concluded') {
     return { label: 'Concluded', class: 'concluded' }
   }
 
@@ -119,9 +119,15 @@ const getEventStatus = (event) => {
   if (slotsLeft <= 0) {
     return { label: 'Closed', class: 'closed' }
   }
+  const end = event.end_datetime ? new Date(event.end_datetime) : null
+  const now = new Date()
   if (end && (end - now) / (1000 * 60 * 60 * 24) < 1) {
     return { label: 'Closed', class: 'closed' }
   }
+
+  // Live statuses
+  if (live === 'Happening Soon') return { label: 'Happening Soon', class: 'ongoing' }
+  if (live === 'Happening Now') return { label: 'Happening Now', class: 'ongoing' }
 
   // Recruiting
   return { label: 'Recruiting', class: 'recruiting' }
@@ -276,15 +282,8 @@ const formatTimeRemaining = (iso) => {
 }
 
 const eventStatusLabel = (e) => {
-  if (!e.end_datetime) return 'Scheduled'
-  const end = new Date(e.end_datetime)
-  const now = new Date()
-  const diffMs = end - now
-  const diffDays = diffMs / (1000 * 60 * 60 * 24)
-  if (diffMs <= 0) return 'Concluded'
-  if (diffDays < 2) return 'Happening Soon'
-  if (diffDays < 1) return 'Happening Now'
-  return 'Scheduled'
+  if (!e) return ''
+  return e.live_status || 'Scheduled'
 }
 
 const openManageModal = async (event) => {
