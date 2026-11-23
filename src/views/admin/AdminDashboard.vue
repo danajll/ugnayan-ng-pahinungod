@@ -1,17 +1,74 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { CalendarDays, MapPin, Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { computed, ref, onMounted } from 'vue'
+import { CalendarDays, MapPin, Search, ArrowRight, ChevronLeft, ChevronRight, Eye, UsersRound, X, Clock3 } from 'lucide-vue-next'
 import { eventService } from '../../api/events'
 import { volunteerService } from '../../api/volunteers'
 
-const eventFilter = ref('All Active')
 const volunteerSearch = ref('')
-const eventFilters = ['All Active', 'Field Deployment', 'Tutoring', 'Medical Mission', 'Others']
+const eventProximity = ref('all')
 
-// Start empty
 const events = ref([])
 const volunteers = ref([])
 const loading = ref(true)
+
+const eventProximities = ['All', 'Today', 'This Week', 'This Month']
+
+const formatDate = (iso) =>
+  iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+
+const formatDateTime = (iso) => {
+  if (!iso) return 'N/A'
+  return new Date(iso).toLocaleString('en-PH', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
+const daysFromNow = (iso) => {
+  if (!iso) return null
+  const start = new Date(iso)
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  start.setHours(0, 0, 0, 0)
+  return Math.round((start - now) / (1000 * 60 * 60 * 24))
+}
+
+// Map a Django Event to the shape the dashboard card expects
+const mapEvent = (e) => ({
+  id: e.id,
+  title: e.name,
+  category: e.category,
+  date: formatDate(e.start_datetime),
+  start_datetime: e.start_datetime,
+  end_datetime: e.end_datetime,
+  location: e.location || 'Location to be announced',
+  city: e.city || '',
+  status: e.status,
+  live_status: e.live_status || 'Scheduled',
+  quota: e.quota ?? 0,
+  registered: e.registered_count ?? 0,
+})
+
+const getEventStatus = (event) => {
+  const slotsLeft = Math.max((event.quota || 0) - (event.registered || 0), 0)
+  const live = event.live_status || 'Scheduled'
+
+  if (live === 'Concluded') {
+    return { label: 'Concluded', class: 'concluded' }
+  }
+  if (slotsLeft <= 0) {
+    return { label: 'Closed', class: 'closed' }
+  }
+  const end = event.end_datetime ? new Date(event.end_datetime) : null
+  const now = new Date()
+  if (end && (end - now) / (1000 * 60 * 60 * 24) < 1) {
+    return { label: 'Closed', class: 'closed' }
+  }
+  if (live === 'Happening Soon') return { label: 'Happening Soon', class: 'ongoing' }
+  if (live === 'Happening Now') return { label: 'Happening Now', class: 'ongoing' }
+
+  return { label: 'Recruiting', class: 'recruiting' }
+}
 
 onMounted(async () => {
   try {
@@ -20,27 +77,16 @@ onMounted(async () => {
       volunteerService.list()
     ])
 
-    // Map events. Note: Backend doesn't have "status" or "capacity" yet, 
-    // so we mock some UI fields.
-  events.value = evRes.data.map(e => ({
-    id: e.id,
-    status: e.status === 'Published' ? 'Open for Registration' : e.status,
-    title: e.name,
-    location: e.location,
-    date: new Date(e.start_datetime).toLocaleDateString(),
-    capacity: e.quota || 0,
-    confirmed: e.registered_count || 0,
-    coordinator: 'Admin',
-    role: 'Coordinator'
-  }))
+    events.value = evRes.data.map(mapEvent)
 
-    // Map volunteers (reuse logic from AdminVolunteers)
     volunteers.value = volRes.data.map(v => ({
+      id: v.id,
+      identifier: v.volunteer_identifier,
       name: `${v.first_name} ${v.last_name}`,
-      id: v.volunteer_identifier,
       affiliation: v.affiliation_type,
-      timeIn: 'N/A',
-      timeOut: 'N/A'
+      degree: v.degree || 'N/A',
+      status: v.status,
+      timeIn: formatDateTime(v.onboarding_completed_at),
     }))
 
   } catch (err) {
@@ -51,8 +97,33 @@ onMounted(async () => {
 })
 
 const filteredEvents = computed(() => {
-  // Simple mock filter since backend doesn't have categories yet
-  return events.value
+  return events.value.filter((event) => {
+    if (event.live_status === 'Concluded') return false
+
+    const days = daysFromNow(event.start_datetime)
+    let matchesProximity = true
+    if (eventProximity.value === 'Today') {
+      matchesProximity = days === 0
+    } else if (eventProximity.value === 'This Week') {
+      matchesProximity = days !== null && days >= 0 && days <= 7
+    } else if (eventProximity.value === 'This Month') {
+      matchesProximity = days !== null && days >= 0 && days <= 30
+    }
+
+    return matchesProximity
+  })
+})
+
+const filteredVolunteers = computed(() => {
+  const value = volunteerSearch.value.toLowerCase()
+  return volunteers.value.filter((volunteer) => {
+    const matchesSearch =
+      volunteer.name.toLowerCase().includes(value) ||
+      volunteer.identifier.toLowerCase().includes(value)
+    const isFacultyOrStaff =
+      volunteer.affiliation === 'faculty' || volunteer.affiliation === 'staff'
+    return matchesSearch && isFacultyOrStaff
+  })
 })
 </script>
 
@@ -68,20 +139,22 @@ const filteredEvents = computed(() => {
         <div class="dashboard-section-header">
 
           <h2 class="admin-section-title">
-            CURRENT & ONGOING EVENTS
+            ONGOING & UPCOMING EVENTS
           </h2>
 
-          <div class="dashboard-event-tabs">
+          <div class="dashboard-event-toolbar">
 
-            <button
-              v-for="filter in eventFilters"
-              :key="filter"
-              class="dashboard-event-tab"
-              :class="{ active: eventFilter === filter }"
-              @click="eventFilter = filter"
-            >
-              {{ filter }}
-            </button>
+            <div class="dashboard-event-tabs">
+              <button
+                v-for="item in eventProximities"
+                :key="item"
+                class="dashboard-event-tab"
+                :class="{ active: eventProximity === item }"
+                @click="eventProximity = item"
+              >
+                {{ item }}
+              </button>
+            </div>
 
           </div>
 
@@ -90,7 +163,7 @@ const filteredEvents = computed(() => {
         <div class="dashboard-event-grid">
 
           <article
-            v-for="event in events"
+            v-for="event in filteredEvents"
             :key="event.id"
             class="dashboard-event-card"
           >
@@ -99,96 +172,46 @@ const filteredEvents = computed(() => {
 
               <span
                 class="dashboard-event-status"
-                :class="{
-                  'open': event.status === 'Open for Registration',
-                  'booked': event.status === 'Fully Booked'
-                }"
+                :class="getEventStatus(event).class"
               >
-
                 <span class="status-dot"></span>
-
-                {{ event.status }}
-
+                {{ getEventStatus(event).label }}
               </span>
 
               <span class="dashboard-event-date">
-
                 <CalendarDays :size="14" />
-
                 {{ event.date }}
-
               </span>
 
             </div>
+
+            <span class="dashboard-event-category">
+              {{ event.category }}
+            </span>
 
             <h3 class="dashboard-event-title">
               {{ event.title }}
             </h3>
 
             <div class="dashboard-event-location">
-
               <MapPin :size="16" />
-
-              {{ event.location }}
-
+              {{ event.location }}{{ event.city ? ', ' + event.city : '' }}
             </div>
 
             <div class="dashboard-capacity">
-
               <div class="dashboard-capacity-heading">
-
-                <span>
-                  Capacity
-                </span>
-
+                <span>Volunteer Quota</span>
                 <strong>
-                  {{ event.confirmed }} / {{ event.capacity }} Confirmed
+                  {{ event.registered }} / {{ event.quota }} Registered
                 </strong>
-
               </div>
-
               <div class="dashboard-capacity-bar">
-
                 <span
                   :style="{
-                    width: `${(event.confirmed / event.capacity) * 100}%`
+                    width: event.quota ? `${(event.registered / event.quota) * 100}%` : '0%'
                   }"
                 ></span>
-
               </div>
-
-            </div>
-
-            <div class="dashboard-event-footer">
-
-              <div class="dashboard-coordinator">
-
-                <div class="dashboard-avatar">
-                  DJ
-                </div>
-
-                <div>
-
-                  <strong>
-                    {{ event.coordinator }}
-                  </strong>
-
-                  <span>
-                    {{ event.role }}
-                  </span>
-
-                </div>
-
-              </div>
-
-              <button class="dashboard-manage-button">
-
-                Manage
-
-                <ArrowRight :size="15" />
-
-              </button>
-
             </div>
 
           </article>
@@ -196,15 +219,10 @@ const filteredEvents = computed(() => {
         </div>
 
         <div class="dashboard-more-events">
-
           <RouterLink to="/admin/events">
-
-            More Events
-
+            Go to Event Dashboard
             <ArrowRight :size="16" />
-
           </RouterLink>
-
         </div>
 
       </section>
@@ -221,26 +239,20 @@ const filteredEvents = computed(() => {
           <div class="dashboard-personnel-actions">
 
             <div class="dashboard-search">
-
               <Search :size="17" />
-
               <input
                 v-model="volunteerSearch"
                 type="text"
                 placeholder="Filter by name, degree, ID..."
               />
-
             </div>
 
             <RouterLink
               to="/admin/volunteers"
               class="dashboard-view-all"
             >
-
               View All Volunteers
-
               <ArrowRight :size="16" />
-
             </RouterLink>
 
           </div>
@@ -252,66 +264,57 @@ const filteredEvents = computed(() => {
           <table class="dashboard-table">
 
             <thead>
-
               <tr>
-
                 <th>
                   VOLUNTEER<br>
                   NAME & ID
                 </th>
-
                 <th>
                   AFFILIATION
                 </th>
-
+                <th>
+                  DEGREE / PROGRAM
+                </th>
                 <th>
                   TIME IN
                 </th>
-
                 <th>
-                  TIME OUT
+                  STATUS
                 </th>
-
                 <th>
                   QUICK ACTION
                 </th>
-
               </tr>
-
             </thead>
 
             <tbody>
-
               <tr
-                v-for="volunteer in volunteers"
-                :key="volunteer.affiliation"
+                v-for="volunteer in filteredVolunteers"
+                :key="volunteer.id"
               >
 
                 <td>
-
                   <div class="volunteer-name">
-
                     <strong>
                       {{ volunteer.name }}
                     </strong>
-
                     <span>
-                      {{ volunteer.id }}
+                      {{ volunteer.identifier }}
                     </span>
-
                   </div>
-
                 </td>
 
                 <td>
-
                   <span
                     class="affiliation-badge"
                     :class="volunteer.affiliation.toLowerCase()"
                   >
                     {{ volunteer.affiliation }}
                   </span>
+                </td>
 
+                <td>
+                  {{ volunteer.degree }}
                 </td>
 
                 <td>
@@ -319,69 +322,57 @@ const filteredEvents = computed(() => {
                 </td>
 
                 <td>
-                  {{ volunteer.timeOut }}
+                  <span
+                    class="dashboard-status"
+                    :class="volunteer.status === 'active' ? 'active' : 'pending'"
+                  >
+                    {{ volunteer.status === 'active' ? 'Onboarded' : 'Pending Verification' }}
+                  </span>
                 </td>
 
                 <td>
-
-                  <button class="view-profile-button">
+                  <RouterLink
+                    :to="`/admin/volunteers/${volunteer.id}`"
+                    class="view-profile-button"
+                  >
                     View Profile
-                  </button>
-
+                  </RouterLink>
                 </td>
 
               </tr>
-
             </tbody>
 
           </table>
 
           <div class="dashboard-table-footer">
-
             <span>
-              Showing 2 of 1,143 registered volunteer records
+              Showing {{ filteredVolunteers.length }} of {{ volunteers.length }} registered volunteer records
             </span>
-
             <div class="dashboard-pagination">
-
               <button disabled>
-
                 <ChevronLeft :size="15" />
-
                 Previous
-
               </button>
-
               <button class="active">
                 1
               </button>
-
               <button>
                 2
               </button>
-
               <button>
                 3
               </button>
-
               <span>
                 ...
               </span>
-
               <button>
                 250
               </button>
-
               <button>
-
                 Next
-
                 <ChevronRight :size="15" />
-
               </button>
-
             </div>
-
           </div>
 
         </div>
